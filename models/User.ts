@@ -15,6 +15,13 @@ export interface IUser {
   darkMode: boolean;
   isActive: boolean;
   emailVerifiedAt?: Date;
+  activePlanId?: Types.ObjectId;
+  billingType?: 'monthly' | 'yearly';
+  planExpireDate?: Date;
+  trialExpireDate?: Date;
+  isTrialDone?: boolean;
+  totalBusiness?: number;
+  totalUser?: number;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -80,6 +87,36 @@ const UserSchema = new Schema<IUserDocument>(
     emailVerifiedAt: {
       type: Date,
       default: null,
+    },
+    activePlanId: {
+      type: Schema.Types.ObjectId,
+      ref: 'Plan',
+      sparse: true,
+    },
+    billingType: {
+      type: String,
+      enum: ['monthly', 'yearly'],
+      default: 'monthly',
+    },
+    planExpireDate: {
+      type: Date,
+      default: null,
+    },
+    trialExpireDate: {
+      type: Date,
+      default: null,
+    },
+    isTrialDone: {
+      type: Boolean,
+      default: false,
+    },
+    totalBusiness: {
+      type: Number,
+      default: 0,
+    },
+    totalUser: {
+      type: Number,
+      default: 0,
     },
   },
   {
