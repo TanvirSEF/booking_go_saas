@@ -2,6 +2,7 @@ import type { NextAuthConfig } from 'next-auth';
 import type { UserRole } from '@/models/User';
 
 export const authConfig: NextAuthConfig = {
+  trustHost: true,
   pages: {
     signIn: '/login',
   },
