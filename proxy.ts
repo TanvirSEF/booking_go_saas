@@ -4,7 +4,7 @@ import { NextResponse } from 'next/server';
 
 const { auth } = NextAuth(authConfig);
 
-export default auth((req) => {
+export const proxy = auth((req) => {
   const { nextUrl } = req;
   const isLoggedIn = !!req.auth;
   const role = req.auth?.user?.role;
@@ -77,6 +77,8 @@ export default auth((req) => {
 
   return NextResponse.next();
 });
+
+export default proxy;
 
 export const config = {
   matcher: ['/((?!api|_next/static|_next/image|favicon.ico|uploads|.*\\..*).*)'],
