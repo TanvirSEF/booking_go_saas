@@ -180,6 +180,7 @@ export function WizardProvider({ business, catalog, children }: WizardProviderPr
 
         if (!hasValidName || !hasValidEmail || !hasValidContact) return false;
         if (customerType === 'new-user' && (!password || password.length < 4)) return false;
+        if (customerType === 'existing-user' && (!password || password.length < 1)) return false;
 
         return true;
       }

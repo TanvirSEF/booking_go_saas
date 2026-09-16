@@ -78,12 +78,27 @@ export default async function AppointmentBookingPage({
     logoLight: businessDoc.logoLight,
     appointmentPrefix: businessDoc.appointmentPrefix,
     maximumSlot: businessDoc.maximumSlot || 1,
+    businessHours: (businessDoc.businessHours || []).map((bh) => ({
+      dayName: bh.dayName,
+      isOpen: bh.isOpen,
+      startTime: bh.startTime,
+      endTime: bh.endTime,
+      breakHours: (bh.breakHours || []).map((br) => ({
+        start: br.start,
+        end: br.end,
+      })),
+    })),
+    holidays: (businessDoc.holidays || []).map((h) => ({
+      date: h.date,
+      description: h.description,
+    })),
   };
 
   const locations: ClientLocation[] = locationsDocs.map((loc) => ({
     id: String(loc._id),
     name: loc.name,
     address: loc.address,
+    phone: loc.phone,
     description: loc.description,
   }));
 

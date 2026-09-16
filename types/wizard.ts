@@ -31,6 +31,19 @@ export interface WizardState {
   paymentType: 'Manually' | 'Stripe' | 'PayPal' | 'BankTransfer' | 'Free';
 }
 
+export interface ClientBusinessHour {
+  dayName: 'Monday' | 'Tuesday' | 'Wednesday' | 'Thursday' | 'Friday' | 'Saturday' | 'Sunday';
+  isOpen: boolean;
+  startTime: string;
+  endTime: string;
+  breakHours: { start: string; end: string }[];
+}
+
+export interface ClientHoliday {
+  date: string;
+  description?: string;
+}
+
 export interface ClientBusiness {
   id: string;
   name: string;
@@ -43,12 +56,15 @@ export interface ClientBusiness {
   logoLight?: string;
   appointmentPrefix?: string;
   maximumSlot?: number;
+  businessHours?: ClientBusinessHour[];
+  holidays?: ClientHoliday[];
 }
 
 export interface ClientLocation {
   id: string;
   name: string;
   address?: string;
+  phone?: string;
   description?: string;
 }
 
