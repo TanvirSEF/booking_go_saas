@@ -165,16 +165,16 @@ export function AdminSidebar({ ...props }: React.ComponentProps<typeof Sidebar>)
                       <SidebarMenuSubItem>
                         <SidebarMenuSubButton
                           asChild
-                          isActive={pathname === "/super-admin/coupons"}
+                          isActive={pathname.startsWith("/super-admin/coupons")}
                           className={cn(
                             "rounded-lg text-xs",
-                            pathname === "/super-admin/coupons" &&
+                            pathname.startsWith("/super-admin/coupons") &&
                               "bg-primary text-primary-foreground font-semibold hover:bg-primary hover:text-primary-foreground"
                           )}
                         >
                           <Link href="/super-admin/coupons">
                             <IconTicket size={14} />
-                            <span>Coupon Codes</span>
+                            <span>Coupon</span>
                           </Link>
                         </SidebarMenuSubButton>
                       </SidebarMenuSubItem>
