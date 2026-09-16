@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useTransition } from "react";
+import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { IconEye, IconEyeOff } from "@tabler/icons-react";
 import {
@@ -55,13 +56,16 @@ interface CreateSubscriberDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   plans: PlanOption[];
+  onSuccess?: () => void;
 }
 
 export function CreateSubscriberDialog({
   open,
   onOpenChange,
   plans,
+  onSuccess,
 }: CreateSubscriberDialogProps) {
+  const router = useRouter();
   const [name, setName] = useState("");
   const [businessName, setBusinessName] = useState("");
   const [email, setEmail] = useState("");
@@ -91,6 +95,8 @@ export function CreateSubscriberDialog({
         setPassword("");
         setLoginIsEnable(true);
         onOpenChange(false);
+        router.refresh();
+        onSuccess?.();
       } else {
         toast.error(res.error || "Failed to create subscriber.");
       }
@@ -237,6 +243,7 @@ interface EditSubscriberDialogProps {
   onOpenChange: (open: boolean) => void;
   company: CompanyItem | null;
   plans: PlanOption[];
+  onSuccess?: () => void;
 }
 
 export function EditSubscriberDialog({
@@ -244,7 +251,9 @@ export function EditSubscriberDialog({
   onOpenChange,
   company,
   plans,
+  onSuccess,
 }: EditSubscriberDialogProps) {
+  const router = useRouter();
   const [name, setName] = useState(company?.name || "");
   const [businessName, setBusinessName] = useState(company?.businessName || "");
   const [email, setEmail] = useState(company?.email || "");
@@ -275,6 +284,8 @@ export function EditSubscriberDialog({
       if (res.success) {
         toast.success("Subscriber updated successfully!");
         onOpenChange(false);
+        router.refresh();
+        onSuccess?.();
       } else {
         toast.error(res.error || "Failed to update subscriber.");
       }
@@ -369,13 +380,16 @@ interface ResetPasswordDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   company: CompanyItem | null;
+  onSuccess?: () => void;
 }
 
 export function ResetPasswordDialog({
   open,
   onOpenChange,
   company,
+  onSuccess,
 }: ResetPasswordDialogProps) {
+  const router = useRouter();
   const [newPassword, setNewPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [showNewPassword, setShowNewPassword] = useState(false);
@@ -411,6 +425,8 @@ export function ResetPasswordDialog({
       if (res.success) {
         toast.success(`Password for ${company.name} reset successfully!`);
         handleClose(false);
+        router.refresh();
+        onSuccess?.();
       } else {
         toast.error(res.error || "Failed to reset password.");
       }
@@ -514,13 +530,16 @@ interface DeleteSubscriberDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   company: CompanyItem | null;
+  onSuccess?: () => void;
 }
 
 export function DeleteSubscriberDialog({
   open,
   onOpenChange,
   company,
+  onSuccess,
 }: DeleteSubscriberDialogProps) {
+  const router = useRouter();
   const [isPending, startTransition] = useTransition();
 
   function handleDelete() {
@@ -531,6 +550,8 @@ export function DeleteSubscriberDialog({
       if (res.success) {
         toast.success(`Subscriber "${company.name}" deleted.`);
         onOpenChange(false);
+        router.refresh();
+        onSuccess?.();
       } else {
         toast.error(res.error || "Failed to delete subscriber.");
       }

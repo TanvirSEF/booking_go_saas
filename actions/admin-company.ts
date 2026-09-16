@@ -251,3 +251,51 @@ export async function deleteCompanyAction(companyId: string) {
     return { success: false, error: message };
   }
 }
+
+function formatExpireDate(d?: Date | null): string {
+  if (!d) return "10-10-26";
+  const date = new Date(d);
+  const day = String(date.getDate()).padStart(2, "0");
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  const year = String(date.getFullYear()).slice(-2);
+  return `${day}-${month}-${year}`;
+}
+
+export async function getCompaniesAction() {
+  await verifySuperAdmin();
+  await connectToDatabase();
+
+  const rawCompanies = await User.find({ role: "company" })
+    .populate("activePlanId", "name")
+    .sort({ createdAt: -1 })
+    .lean();
+
+  const companyIds = rawCompanies.map((c) => c._id);
+  const businesses = await Business.find({ companyId: { $in: companyIds } })
+    .select("companyId name slug")
+    .lean();
+
+  const businessMap = new Map(
+    businesses.map((b) => [String(b.companyId), b])
+  );
+
+  return rawCompanies.map((c) => {
+    const b = businessMap.get(String(c._id));
+    const plan = c.activePlanId as { _id?: unknown; name?: string } | null;
+
+    return {
+      id: String(c._id),
+      name: c.name,
+      email: c.email,
+      isActive: c.isActive ?? true,
+      role: c.role,
+      businessName: b?.name,
+      businessSlug: b?.slug,
+      planName: plan?.name ? `${plan.name} Plan` : "Basic Plan",
+      planId: plan?._id ? String(plan._id) : undefined,
+      planExpiredDate: formatExpireDate(c.planExpireDate),
+      createdAt: new Date(c.createdAt).toLocaleDateString(),
+    };
+  });
+}
+

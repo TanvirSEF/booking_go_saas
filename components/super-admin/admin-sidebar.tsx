@@ -157,7 +157,7 @@ export function AdminSidebar({ ...props }: React.ComponentProps<typeof Sidebar>)
                         >
                           <Link href="/super-admin/plans">
                             <IconTrophy size={14} />
-                            <span>Subscription Plans</span>
+                            <span>Subscription Setting</span>
                           </Link>
                         </SidebarMenuSubButton>
                       </SidebarMenuSubItem>
