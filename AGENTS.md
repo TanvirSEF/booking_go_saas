@@ -53,3 +53,10 @@ All AI agents working on this codebase MUST strictly follow these rules:
 - **Clean Path Aliases**: Always use configured root path aliases (e.g. `@/components/...`, `@/lib/...`, `@/types/...`) instead of deep relative imports (`../../../../`).
 - **No Fake / Mock Placeholders**: Never leave `TODO: implement later` stubs or hardcoded dummy mocks in production code. Wire directly to active API wrappers and schema types.
 - **Idiomatic Error & Loading States**: Use Next.js conventions (`error.tsx`, `not-found.tsx`) and standard Skeleton loaders rather than custom ad-hoc error dialogs.
+
+## 8. Developer Git Workflow & Strict Branch Rules
+- **Designated Branch**: Always work on local branch **`sohel`**.
+- **Pull Protocol**: Pull / sync latest codebase updates from **`origin/main`** (`git fetch origin main`, `git merge origin/main`).
+- **Push Restriction**: **NEVER push to GitHub without explicit user permission**.
+- **Target Push Branch**: When explicitly told to push, push **STRICTLY to `origin sohel`** (`git push origin sohel`). NEVER push to `main`, `dev`, `master`, or other developer branches.
+- **Pre-Push Quality Gate**: Ensure `pnpm typecheck` (0 errors) and `pnpm lint` (0 errors, 0 warnings) pass cleanly before committing/pushing.
