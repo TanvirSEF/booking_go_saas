@@ -1,68 +1,94 @@
+import { redirect } from "next/navigation";
+import { auth } from "@/auth";
 import { connectToDatabase } from "@/lib/db";
 import { User } from "@/models/User";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
-import { IconBuilding, IconMail, IconCalendar } from "@tabler/icons-react";
+import { Business } from "@/models/Business";
+import { Plan } from "@/models/Plan";
+import {
+  SubscribersView,
+} from "@/components/super-admin/subscribers-view";
+import {
+  CompanyItem,
+  PlanOption,
+} from "@/components/super-admin/company-dialog";
 
 export const metadata = {
-  title: "Companies | Super Admin",
+  title: "Subscribers | Super Admin",
 };
 
+export const revalidate = 0; // Dynamic data for live status
+
+function formatExpireDate(d?: Date | null): string {
+  if (!d) return "10-10-26";
+  const date = new Date(d);
+  const day = String(date.getDate()).padStart(2, "0");
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  const year = String(date.getFullYear()).slice(-2);
+  return `${day}-${month}-${year}`;
+}
+
 export default async function CompaniesPage() {
+  const session = await auth();
+
+  if (!session?.user) {
+    redirect("/login?callbackUrl=/super-admin/companies");
+  }
+
+  if (session.user.role !== "super admin") {
+    redirect("/dashboard");
+  }
+
   await connectToDatabase();
 
-  const companies = await User.find({ role: "company" })
-    .select("name email isActive createdAt activePlanId")
+  // Fetch all company users
+  const rawCompanies = await User.find({ role: "company" })
     .populate("activePlanId", "name")
+    .sort({ createdAt: -1 })
     .lean();
 
-  return (
-    <div className="flex flex-col gap-6">
-      <div>
-        <h1 className="text-2xl font-bold tracking-tight text-foreground">
-          Subscribers & Companies
-        </h1>
-        <p className="text-sm text-muted-foreground">
-          Registered tenants and company administrators.
-        </p>
-      </div>
+  // Fetch businesses for each company
+  const companyIds = rawCompanies.map((c) => c._id);
+  const businesses = await Business.find({ companyId: { $in: companyIds } })
+    .select("companyId name slug")
+    .lean();
 
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
-        {companies.map((company) => {
-          const plan = company.activePlanId as { name?: string } | null;
-          return (
-            <Card key={String(company._id)} className="rounded-2xl border-border bg-card p-5 shadow-xs">
-              <CardHeader className="p-0 pb-3">
-                <div className="flex items-center justify-between">
-                  <Badge variant={company.isActive ? "default" : "secondary"} className="text-[10px]">
-                    {company.isActive ? "Active Tenant" : "Suspended"}
-                  </Badge>
-                  <span className="text-xs text-muted-foreground font-medium">
-                    {plan?.name || "Free Tier"}
-                  </span>
-                </div>
-                <CardTitle className="mt-2 text-base font-bold text-card-foreground">
-                  {company.name}
-                </CardTitle>
-                <CardDescription className="flex items-center gap-1.5 text-xs text-muted-foreground">
-                  <IconMail size={14} />
-                  <span>{company.email}</span>
-                </CardDescription>
-              </CardHeader>
-              <CardContent className="flex items-center justify-between border-t border-border/50 p-0 pt-3 text-[11px] text-muted-foreground">
-                <div className="flex items-center gap-1">
-                  <IconCalendar size={13} />
-                  <span>{new Date(company.createdAt).toLocaleDateString()}</span>
-                </div>
-                <div className="flex items-center gap-1 text-primary font-medium">
-                  <IconBuilding size={13} />
-                  <span>Managed</span>
-                </div>
-              </CardContent>
-            </Card>
-          );
-        })}
-      </div>
+  const businessMap = new Map(
+    businesses.map((b) => [String(b.companyId), b])
+  );
+
+  // Fetch available subscription plans
+  const rawPlans = await Plan.find({ isEnabled: true })
+    .select("name packagePriceMonthly")
+    .lean();
+
+  const companies: CompanyItem[] = rawCompanies.map((c) => {
+    const b = businessMap.get(String(c._id));
+    const plan = c.activePlanId as { _id?: unknown; name?: string } | null;
+
+    return {
+      id: String(c._id),
+      name: c.name,
+      email: c.email,
+      isActive: c.isActive ?? true,
+      role: c.role,
+      businessName: b?.name,
+      businessSlug: b?.slug,
+      planName: plan?.name ? `${plan.name} Plan` : "Basic Plan",
+      planId: plan?._id ? String(plan._id) : undefined,
+      planExpiredDate: formatExpireDate(c.planExpireDate),
+      createdAt: new Date(c.createdAt).toLocaleDateString(),
+    };
+  });
+
+  const plans: PlanOption[] = rawPlans.map((p) => ({
+    id: String(p._id),
+    name: p.name,
+    packagePriceMonthly: p.packagePriceMonthly,
+  }));
+
+  return (
+    <div className="w-full">
+      <SubscribersView initialCompanies={companies} plans={plans} />
     </div>
   );
 }
