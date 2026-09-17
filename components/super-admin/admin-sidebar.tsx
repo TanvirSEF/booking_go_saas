@@ -76,7 +76,7 @@ export function AdminSidebar({ ...props }: React.ComponentProps<typeof Sidebar>)
             Platform
           </SidebarGroupLabel>
           <SidebarGroupContent>
-            <SidebarMenu>
+            <SidebarMenu className="gap-1">
               <SidebarMenuItem>
                 <SidebarMenuButton
                   asChild
@@ -209,7 +209,7 @@ export function AdminSidebar({ ...props }: React.ComponentProps<typeof Sidebar>)
             Communication
           </SidebarGroupLabel>
           <SidebarGroupContent>
-            <SidebarMenu>
+            <SidebarMenu className="gap-1">
               <SidebarMenuItem>
                 <SidebarMenuButton
                   asChild
@@ -245,7 +245,7 @@ export function AdminSidebar({ ...props }: React.ComponentProps<typeof Sidebar>)
             System
           </SidebarGroupLabel>
           <SidebarGroupContent>
-            <SidebarMenu>
+            <SidebarMenu className="gap-1">
               <SidebarMenuItem>
                 <SidebarMenuButton
                   asChild

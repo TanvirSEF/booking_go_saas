@@ -1,3 +1,9 @@
+export const STAFF_DEFAULT_COLORS: string[] = [
+  '#CEEDC1', '#FFEDD2', '#B4E4CD', '#C1E6F9', '#FFF5C1',
+  '#C3DEFB', '#F9D2FF', '#B6EDEF', '#FFCDB2', '#C1CBFF',
+  '#FFD8D8', '#C9D6DE', '#D6C9F2', '#DAD4B5', '#CDE8E5',
+];
+
 export interface StaffLocationSummary {
   _id: string;
   name: string;

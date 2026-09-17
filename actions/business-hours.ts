@@ -168,13 +168,23 @@ export async function updateBusinessHoursAction(
     business.businessHours = validated as unknown as IBusinessHour[];
     await business.save();
 
+    revalidatePath('/dashboard/settings/hours');
     revalidatePath('/dashboard/business/hours');
     revalidatePath('/dashboard');
 
     return {
       success: true,
       data: {
-        businessHours: business.businessHours as unknown as BusinessHourDTO[],
+        businessHours: validated.map((h) => ({
+          dayName: h.dayName,
+          isOpen: h.isOpen,
+          startTime: h.startTime,
+          endTime: h.endTime,
+          breakHours: (h.breakHours || []).map((b) => ({
+            start: b.start,
+            end: b.end,
+          })),
+        })),
         holidays: (business.holidays || []).map((h) => ({
           date: h.date,
           description: h.description || '',
