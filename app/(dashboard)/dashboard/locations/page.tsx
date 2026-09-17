@@ -13,7 +13,6 @@ import {
   IconMapPin,
   IconChevronRight,
   IconHome,
-  IconBuilding,
 } from '@tabler/icons-react';
 
 export const metadata: Metadata = {
@@ -61,10 +60,10 @@ export default async function LocationsPage() {
   };
 
   return (
-    <div className="min-h-screen bg-muted/20 pb-12">
+    <div className="min-h-screen">
       {/* Top Header & Breadcrumbs */}
-      <div className="border-b bg-card">
-        <div className=" mx-auto px-4 sm:px-6">
+      <div>
+        <div className="mx-auto px-4 sm:px-6">
           {/* Breadcrumb Navigation */}
           <nav className="flex items-center gap-2 text-xs text-muted-foreground mb-3 font-medium">
             <Link
@@ -97,20 +96,6 @@ export default async function LocationsPage() {
                 </div>
               </div>
             </div>
-
-            {/* Quick Link to Public Booking */}
-            {activeBusiness?.slug && (
-              <div className="flex items-center gap-2">
-                <Link
-                  href={`/appointments/${activeBusiness.slug}`}
-                  target="_blank"
-                  className="text-xs text-primary hover:underline flex items-center gap-1 bg-primary/5 px-3 py-1.5 rounded-lg border border-primary/20 font-medium"
-                >
-                  <IconBuilding size={14} />
-                  <span>Preview Booking Wizard</span>
-                </Link>
-              </div>
-            )}
           </div>
         </div>
       </div>

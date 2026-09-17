@@ -3,8 +3,11 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
+  IconChevronRight,
+  IconFolder,
   IconLayoutDashboard,
   IconMapPin,
+  IconScissors,
   IconSparkles,
 } from "@tabler/icons-react";
 import {
@@ -17,8 +20,16 @@ import {
   SidebarMenu,
   SidebarMenuButton,
   SidebarMenuItem,
+  SidebarMenuSub,
+  SidebarMenuSubButton,
+  SidebarMenuSubItem,
   SidebarRail,
 } from "@/components/ui/sidebar";
+import {
+  Collapsible,
+  CollapsibleContent,
+  CollapsibleTrigger,
+} from "@/components/ui/collapsible";
 import { cn } from "@/lib/utils";
 
 interface CompanySidebarProps extends React.ComponentProps<typeof Sidebar> {
@@ -27,6 +38,7 @@ interface CompanySidebarProps extends React.ComponentProps<typeof Sidebar> {
 
 export function CompanySidebar({ businessName, ...props }: CompanySidebarProps) {
   const pathname = usePathname();
+  const isServicesRoute = pathname.startsWith("/dashboard/services");
 
   return (
     <Sidebar {...props}>
@@ -63,7 +75,7 @@ export function CompanySidebar({ businessName, ...props }: CompanySidebarProps) 
                   className={cn(
                     "rounded-xl font-medium transition-colors",
                     pathname === "/dashboard" &&
-                      "bg-emerald-600 text-white hover:bg-emerald-600 hover:text-white dark:bg-emerald-500 dark:hover:bg-emerald-500 shadow-xs font-semibold"
+                    "bg-primary text-primary-foreground hover:bg-primary hover:text-primary-foreground shadow-xs font-semibold"
                   )}
                 >
                   <Link href="/dashboard">
@@ -89,7 +101,7 @@ export function CompanySidebar({ businessName, ...props }: CompanySidebarProps) 
                   className={cn(
                     "rounded-xl font-medium transition-colors",
                     pathname.startsWith("/dashboard/locations") &&
-                      "bg-emerald-600 text-white hover:bg-emerald-600 hover:text-white dark:bg-emerald-500 dark:hover:bg-emerald-500 shadow-xs font-semibold"
+                    "bg-primary text-primary-foreground hover:bg-primary hover:text-primary-foreground shadow-xs font-semibold"
                   )}
                 >
                   <Link href="/dashboard/locations">
@@ -98,6 +110,75 @@ export function CompanySidebar({ businessName, ...props }: CompanySidebarProps) 
                   </Link>
                 </SidebarMenuButton>
               </SidebarMenuItem>
+
+              {/* Services with sub-routes: Categories & Service Catalog */}
+              <Collapsible
+                defaultOpen={isServicesRoute}
+                className="group/collapsible"
+              >
+                <SidebarMenuItem>
+                  <CollapsibleTrigger asChild>
+                    <SidebarMenuButton
+                      className={cn(
+                        "w-full justify-between rounded-xl font-medium transition-colors cursor-pointer",
+                        isServicesRoute && "text-primary font-semibold hover:text-sidebar-accent-foreground"
+                      )}
+                    >
+                      <div className="flex items-center gap-2">
+                        <IconScissors size={18} className="hover:text-sidebar-accent-foreground" />
+                        <span>Services</span>
+                      </div>
+                      <IconChevronRight
+                        size={16}
+                        className="transition-transform duration-200 group-data-[state=open]/collapsible:rotate-90"
+                      />
+                    </SidebarMenuButton>
+                  </CollapsibleTrigger>
+                  <CollapsibleContent>
+                    <SidebarMenuSub className="my-1 ml-4 border-l border-sidebar-border pl-2">
+                      {/* Categories sub-route */}
+                      <SidebarMenuSubItem>
+                        <SidebarMenuSubButton
+                          asChild
+                          isActive={pathname.startsWith("/dashboard/services/categories")}
+                          className={cn(
+                            "rounded-lg text-xs font-medium transition-colors",
+                            pathname.startsWith("/dashboard/services/categories") &&
+                            "bg-primary text-primary-foreground font-semibold hover:bg-primary hover:text-primary-foreground shadow-xs"
+                          )}
+                        >
+                          <Link href="/dashboard/services/categories">
+                            <IconFolder size={14} />
+                            <span>Categories</span>
+                          </Link>
+                        </SidebarMenuSubButton>
+                      </SidebarMenuSubItem>
+
+                      {/* Service Catalog sub-route */}
+                      <SidebarMenuSubItem>
+                        <SidebarMenuSubButton
+                          asChild
+                          isActive={
+                            pathname === "/dashboard/services" ||
+                            pathname.startsWith("/dashboard/services/catalog")
+                          }
+                          className={cn(
+                            "rounded-lg text-xs font-medium transition-colors",
+                            (pathname === "/dashboard/services" ||
+                              pathname.startsWith("/dashboard/services/catalog")) &&
+                            "bg-primary text-primary-foreground font-semibold hover:bg-primary hover:text-primary-foreground shadow-xs"
+                          )}
+                        >
+                          <Link href="/dashboard/services/catalog">
+                            <IconScissors size={14} />
+                            <span>Service Catalog</span>
+                          </Link>
+                        </SidebarMenuSubButton>
+                      </SidebarMenuSubItem>
+                    </SidebarMenuSub>
+                  </CollapsibleContent>
+                </SidebarMenuItem>
+              </Collapsible>
             </SidebarMenu>
           </SidebarGroupContent>
         </SidebarGroup>
