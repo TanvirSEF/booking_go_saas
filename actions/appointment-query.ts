@@ -86,6 +86,7 @@ export async function getCalendarAppointments(params: {
   startDate: string; // YYYY-MM-DD
   endDate: string; // YYYY-MM-DD
   staffId?: string;
+  locationId?: string;
   businessId?: string;
 }): Promise<CalendarEventsResponse> {
   try {
@@ -104,6 +105,10 @@ export async function getCalendarAppointments(params: {
       query.staffId = new Types.ObjectId(params.staffId);
     }
 
+    if (params.locationId && Types.ObjectId.isValid(params.locationId)) {
+      query.locationId = new Types.ObjectId(params.locationId);
+    }
+
     const appointments = await Appointment.find(query).sort({ date: 1, time: 1 }).lean();
 
     if (appointments.length === 0) {
@@ -116,7 +121,7 @@ export async function getCalendarAppointments(params: {
     const appointmentIds = appointments.map((a) => a._id);
 
     const [services, staffs, locations, payments, customStatuses] = await Promise.all([
-      Service.find({ _id: { $in: serviceIds } }).select('name price').lean(),
+      Service.find({ _id: { $in: serviceIds } }).select('name price durationMinutes').lean(),
       Staff.find({ _id: { $in: staffIds } }).select('name colorCode').lean(),
       Location.find({ _id: { $in: locationIds } }).select('name').lean(),
       AppointmentPayment.find({ appointmentId: { $in: appointmentIds } }).select('appointmentId amount status paymentType').lean(),
@@ -155,16 +160,22 @@ export async function getCalendarAppointments(params: {
           appointmentNumber: apt.appointmentNumber,
           customerName: apt.name,
           customerEmail: apt.email,
+          customerType: apt.customerType || 'guest-user',
           customerContact: apt.contact,
           serviceName: service?.name || 'Standard Service',
+          durationMinutes: apt.durationMinutes || service?.durationMinutes || 30,
+          date: apt.date,
+          time: apt.time,
+          staffId: String(apt.staffId),
           staffName: staff?.name || 'Assigned Staff',
           staffColor,
+          locationId: String(apt.locationId),
           locationName: location?.name || 'Downtown Location',
           status,
           statusColor,
-          price: service?.price || 0,
-          paymentType: apt.paymentType || 'Manually',
-          paymentStatus: payment?.status || 'unpaid',
+          price: apt.price ?? service?.price ?? 0,
+          paymentType: apt.paymentType || 'Cash',
+          paymentStatus: payment?.status || apt.paymentStatus || 'unpaid',
           notes: apt.notes,
         },
       };
