@@ -153,10 +153,10 @@ export function CompanySidebar({ businessName, ...props }: CompanySidebarProps) 
   return (
     <Sidebar collapsible="icon" {...props}>
       {/* Brand Header */}
-      <SidebarHeader className="border-b border-sidebar-border p-4">
+      <SidebarHeader className="border-b border-sidebar-border p-3 group-data-[collapsible=icon]:p-1.5 group-data-[collapsible=icon]:items-center">
         <Link
           href="/dashboard"
-          className="flex items-center gap-2.5 transition-opacity hover:opacity-90 overflow-hidden"
+          className="flex items-center gap-2.5 transition-opacity hover:opacity-90 overflow-hidden group-data-[collapsible=icon]:size-9 group-data-[collapsible=icon]:justify-center group-data-[collapsible=icon]:p-0"
         >
           <div className="flex size-9 items-center justify-center rounded-xl bg-primary text-primary-foreground shadow-xs shrink-0">
             <IconSparkles size={18} />
@@ -173,14 +173,17 @@ export function CompanySidebar({ businessName, ...props }: CompanySidebarProps) 
       </SidebarHeader>
 
       {/* Navigation Content based on Data Object */}
-      <SidebarContent className="gap-1 p-2">
+      <SidebarContent className="gap-1 p-2 group-data-[collapsible=icon]:p-1.5 group-data-[collapsible=icon]:gap-1">
         {companyNavigationData.map((section) => (
-          <SidebarGroup key={section.group}>
-            <SidebarGroupLabel className="text-[11px] font-semibold tracking-wider text-muted-foreground uppercase">
+          <SidebarGroup
+            key={section.group}
+            className="p-1 group-data-[collapsible=icon]:p-0 group-data-[collapsible=icon]:items-center"
+          >
+            <SidebarGroupLabel className="text-[11px] font-semibold tracking-wider text-muted-foreground uppercase group-data-[collapsible=icon]:hidden">
               {section.group}
             </SidebarGroupLabel>
-            <SidebarGroupContent>
-              <SidebarMenu className="gap-1">
+            <SidebarGroupContent className="w-full">
+              <SidebarMenu className="gap-1.5 group-data-[collapsible=icon]:gap-1.5 group-data-[collapsible=icon]:items-center">
                 {section.items.map((item) => {
                   const Icon = item.icon;
 
@@ -198,17 +201,17 @@ export function CompanySidebar({ businessName, ...props }: CompanySidebarProps) 
                         defaultOpen={isChildActive}
                         className="group/collapsible"
                       >
-                        <SidebarMenuItem>
+                        <SidebarMenuItem className="group-data-[collapsible=icon]:flex group-data-[collapsible=icon]:justify-center">
                           <CollapsibleTrigger asChild>
                             <SidebarMenuButton
                               tooltip={item.title}
                               className={cn(
-                                "w-full justify-between rounded-xl font-medium transition-colors cursor-pointer",
+                                "w-full justify-between rounded-xl font-medium transition-colors cursor-pointer group-data-[collapsible=icon]:justify-center group-data-[collapsible=icon]:!p-0",
                                 isChildActive &&
                                   "text-primary font-semibold hover:text-sidebar-accent-foreground"
                               )}
                             >
-                              <div className="flex items-center gap-2">
+                              <div className="flex items-center gap-2 group-data-[collapsible=icon]:gap-0 group-data-[collapsible=icon]:justify-center">
                                 <Icon size={18} className="shrink-0" />
                                 <span className="group-data-[collapsible=icon]:hidden">
                                   {item.title}
@@ -266,18 +269,24 @@ export function CompanySidebar({ businessName, ...props }: CompanySidebarProps) 
                           : false;
 
                   return (
-                    <SidebarMenuItem key={item.title}>
+                    <SidebarMenuItem
+                      key={item.title}
+                      className="group-data-[collapsible=icon]:flex group-data-[collapsible=icon]:justify-center"
+                    >
                       <SidebarMenuButton
                         asChild
                         tooltip={item.title}
                         isActive={isActive}
                         className={cn(
-                          "rounded-xl font-medium transition-colors",
+                          "rounded-xl font-medium transition-colors group-data-[collapsible=icon]:justify-center group-data-[collapsible=icon]:!p-0",
                           isActive &&
                             "bg-primary text-primary-foreground hover:bg-primary hover:text-primary-foreground shadow-xs font-semibold"
                         )}
                       >
-                        <Link href={item.url || "#"}>
+                        <Link
+                          href={item.url || "#"}
+                          className="group-data-[collapsible=icon]:justify-center group-data-[collapsible=icon]:gap-0"
+                        >
                           <Icon size={18} className="shrink-0" />
                           <span className="group-data-[collapsible=icon]:hidden">
                             {item.title}
