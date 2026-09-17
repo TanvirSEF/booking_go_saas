@@ -32,6 +32,8 @@ export interface IAppointment {
   attachment?: string;
   customFields?: Record<string, unknown>;
   flexibleHourId?: Types.ObjectId;
+  isReminderSent?: boolean;
+  reminderSentAt?: Date;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -157,6 +159,14 @@ const AppointmentSchema = new Schema<IAppointmentDocument>(
     flexibleHourId: {
       type: Schema.Types.ObjectId,
       sparse: true,
+    },
+    isReminderSent: {
+      type: Boolean,
+      default: false,
+      index: true,
+    },
+    reminderSentAt: {
+      type: Date,
     },
   },
   {

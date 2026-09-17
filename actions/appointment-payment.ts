@@ -1,322 +1,471 @@
 'use server';
 
-import Stripe from 'stripe';
+import { Types } from 'mongoose';
 import path from 'path';
 import fs from 'fs/promises';
+import crypto from 'crypto';
+import { revalidatePath } from 'next/cache';
 import { connectToDatabase } from '@/lib/db';
-import { Coupon } from '@/models/Coupon';
+import { stripe } from '@/lib/stripe';
 import { Appointment } from '@/models/Appointment';
-import type { IService } from '@/models/Service';
-import type { IStaff } from '@/models/Staff';
-import type { IBusiness } from '@/models/Business';
-import type { AppliedCoupon } from '@/types/wizard';
-import type { ConfirmedBookingDetails } from '@/components/wizard/booking-confirmation-dialog';
+import { AppointmentPayment } from '@/models/AppointmentPayment';
+import { Business } from '@/models/Business';
+import { Service } from '@/models/Service';
+import { Coupon } from '@/models/Coupon';
+import type {
+  ValidateCouponInput,
+  ValidateCouponResponse,
+  CreateAppointmentStripeSessionInput,
+  StripeSessionResponse,
+  VerifyStripePaymentResponse,
+  SubmitBankTransferInput,
+  SubmitBankTransferResponse,
+  UploadReceiptResponse,
+} from '@/types/appointment-payment';
 
-const stripeSecretKey = process.env.STRIPE_SECRET_KEY || '';
-
-const stripe = new Stripe(stripeSecretKey);
-
-export interface ValidateCouponInput {
-  couponCode: string;
-  originalPrice: number;
+function safeRevalidate(path: string) {
+  try {
+    revalidatePath(path);
+  } catch {
+    // Outside Next.js request context
+  }
 }
 
-export interface ValidateCouponResult {
-  valid: boolean;
-  coupon?: AppliedCoupon;
-  error?: string;
-}
-
+/**
+ * Validates a promotional coupon code against an appointment's price.
+ */
 export async function validateAppointmentCouponAction(
   input: ValidateCouponInput
-): Promise<ValidateCouponResult> {
+): Promise<ValidateCouponResponse> {
   try {
-    if (!input.couponCode || !input.couponCode.trim()) {
-      return { valid: false, error: 'Please enter a coupon code.' };
+    const { couponCode, originalPrice } = input;
+
+    if (!couponCode || !couponCode.trim()) {
+      return { success: false, error: 'Please enter a coupon code.' };
     }
 
-    const code = input.couponCode.trim().toUpperCase();
-    const originalPrice = Number(input.originalPrice) || 0;
+    if (typeof originalPrice !== 'number' || originalPrice < 0) {
+      return { success: false, error: 'Invalid original price.' };
+    }
 
     await connectToDatabase();
 
-    const coupon = await Coupon.findOne({
-      code,
-      isActive: true,
-    }).lean();
+    const cleanCode = couponCode.trim().toUpperCase();
+    const coupon = await Coupon.findOne({ code: cleanCode, isActive: true });
 
     if (!coupon) {
-      return { valid: false, error: 'Invalid or inactive promo code.' };
+      return { success: false, error: `Coupon code "${cleanCode}" is invalid.` };
     }
 
     if (coupon.expiryDate && new Date(coupon.expiryDate) < new Date()) {
-      return { valid: false, error: 'This promo code has expired.' };
+      return { success: false, error: `Coupon code "${cleanCode}" has expired.` };
     }
 
-    if (coupon.limit && coupon.limit > 0 && coupon.usedCount >= coupon.limit) {
-      return { valid: false, error: 'This promo code has reached its usage limit.' };
+    if (coupon.limit > 0 && (coupon.usedCount || 0) >= coupon.limit) {
+      return { success: false, error: `Coupon code "${cleanCode}" has reached its usage limit.` };
     }
 
-    if (coupon.minimumSpend && coupon.minimumSpend > 0 && originalPrice < coupon.minimumSpend) {
+    if (coupon.minimumSpend > 0 && originalPrice < coupon.minimumSpend) {
       return {
-        valid: false,
-        error: `Minimum booking amount of $${coupon.minimumSpend.toFixed(2)} required for this coupon.`,
+        success: false,
+        error: `A minimum booking spend of $${coupon.minimumSpend} is required for this coupon.`,
       };
     }
 
     let discountAmount = 0;
     if (coupon.discountType === 'percentage') {
       discountAmount = (originalPrice * coupon.discount) / 100;
-      if (coupon.maximumSpend && coupon.maximumSpend > 0) {
-        discountAmount = Math.min(discountAmount, coupon.maximumSpend);
+      if (coupon.maximumSpend && coupon.maximumSpend > 0 && discountAmount > coupon.maximumSpend) {
+        discountAmount = coupon.maximumSpend;
       }
     } else {
-      discountAmount = Math.min(originalPrice, coupon.discount);
+      discountAmount = Math.min(coupon.discount, originalPrice);
     }
 
-    discountAmount = Math.min(discountAmount, originalPrice);
     const finalPrice = Math.max(0, originalPrice - discountAmount);
 
     return {
-      valid: true,
+      success: true,
       coupon: {
-        code: coupon.code,
-        name: coupon.name,
-        discountType: coupon.discountType as 'percentage' | 'flat',
-        discountValue: coupon.discount,
+        couponId: String(coupon._id),
+        couponCode: coupon.code,
+        couponName: coupon.name,
+        discountType: coupon.discountType,
+        discount: coupon.discount,
         discountAmount: Number(discountAmount.toFixed(2)),
         finalPrice: Number(finalPrice.toFixed(2)),
       },
     };
   } catch (err) {
-    console.error('validateAppointmentCouponAction error:', err);
-    return { valid: false, error: 'Failed to validate coupon. Please try again.' };
+    const message = err instanceof Error ? err.message : 'Failed to validate coupon.';
+    return { success: false, error: message };
   }
 }
 
-export async function createAppointmentStripeSessionAction(input: {
-  appointmentId: string;
-  couponCode?: string;
-}): Promise<{ success: boolean; url?: string | null; error?: string }> {
+/**
+ * Creates a Stripe Checkout Session for an appointment booking.
+ */
+export async function createAppointmentStripeSessionAction(
+  input: CreateAppointmentStripeSessionInput
+): Promise<StripeSessionResponse> {
   try {
-    if (!stripeSecretKey) {
-      return { success: false, error: 'Stripe is not configured in environment variables.' };
+    const { appointmentId, couponCode, successUrl, cancelUrl } = input;
+
+    if (!appointmentId || !Types.ObjectId.isValid(appointmentId)) {
+      return { success: false, error: 'Invalid appointment ID provided.' };
     }
 
     await connectToDatabase();
-    const appointment = await Appointment.findById(input.appointmentId)
-      .populate<{ serviceId: IService }>('serviceId')
-      .populate<{ businessId: IBusiness }>('businessId')
-      .lean();
 
+    const appointment = await Appointment.findById(appointmentId);
     if (!appointment) {
       return { success: false, error: 'Appointment not found.' };
     }
 
-    const business = appointment.businessId;
-    const service = appointment.serviceId;
+    if (appointment.paymentStatus === 'paid') {
+      return { success: false, error: 'This appointment has already been paid.' };
+    }
 
-    let payableAmount = appointment.price || service?.price || 0;
+    const [business, service] = await Promise.all([
+      Business.findById(appointment.businessId).lean(),
+      Service.findById(appointment.serviceId).lean(),
+    ]);
 
-    if (input.couponCode) {
+    if (!business) {
+      return { success: false, error: 'Business organization not found.' };
+    }
+
+    const rawPrice = appointment.price || service?.price || 0;
+    let finalPrice = rawPrice;
+    let discountAmount = 0;
+    let validCouponId: string | null = null;
+    let cleanCouponCode = '';
+
+    if (couponCode && couponCode.trim()) {
       const couponRes = await validateAppointmentCouponAction({
-        couponCode: input.couponCode,
-        originalPrice: payableAmount,
+        couponCode,
+        originalPrice: rawPrice,
       });
-      if (couponRes.valid && couponRes.coupon) {
-        payableAmount = couponRes.coupon.finalPrice;
+
+      if (couponRes.success && couponRes.coupon) {
+        finalPrice = couponRes.coupon.finalPrice;
+        discountAmount = couponRes.coupon.discountAmount;
+        validCouponId = couponRes.coupon.couponId;
+        cleanCouponCode = couponRes.coupon.couponCode;
       }
     }
 
-    const currency = (business?.currency || 'USD').toLowerCase();
+    // Edge Case: 100% discount / Free appointment
+    if (finalPrice <= 0) {
+      appointment.paymentStatus = 'paid';
+      appointment.appointmentStatus = 'Confirmed';
+      appointment.paymentType = 'Stripe';
+      appointment.notes = appointment.notes
+        ? `${appointment.notes}\n[Promo: 100% Free Booking via Coupon ${cleanCouponCode}]`
+        : `[Promo: 100% Free Booking via Coupon ${cleanCouponCode}]`;
+
+      await appointment.save();
+
+      await AppointmentPayment.create({
+        appointmentId: appointment._id,
+        companyId: appointment.companyId,
+        businessId: appointment.businessId,
+        paymentType: 'Promo',
+        amount: rawPrice,
+        discountAmount: discountAmount,
+        finalAmount: 0,
+        paymentDate: new Date(),
+        txnId: `FREE-${Date.now()}`,
+        status: 'completed',
+      });
+
+      if (validCouponId) {
+        await Coupon.findByIdAndUpdate(validCouponId, { $inc: { usedCount: 1 } });
+      }
+
+      const redirectPath = `/appointments/${business.slug}?payment=success&free=true&appointmentNumber=${appointment.appointmentNumber}`;
+      return { success: true, url: redirectPath };
+    }
+
     const appUrl = process.env.NEXTAUTH_URL || 'http://localhost:3000';
-    const slug = business?.slug || 'booking';
+    const resolvedSuccessUrl =
+      successUrl ||
+      `${appUrl}/appointments/${business.slug}?payment=success&session_id={CHECKOUT_SESSION_ID}&appointmentNumber=${appointment.appointmentNumber}`;
+    const resolvedCancelUrl =
+      cancelUrl ||
+      `${appUrl}/appointments/${business.slug}?payment=cancelled&appointmentNumber=${appointment.appointmentNumber}`;
 
     const session = await stripe.checkout.sessions.create({
       payment_method_types: ['card'],
+      mode: 'payment',
+      customer_email: appointment.email,
       line_items: [
         {
           price_data: {
-            currency,
+            currency: (business.currency || 'USD').toLowerCase(),
             product_data: {
-              name: service?.name || 'Appointment Booking',
-              description: `Appointment #${appointment.appointmentNumber} with ${business?.name || 'Service'}`,
+              name: `${service?.name || 'Appointment'} - ${business.name}`,
+              description: `Appointment #${appointment.appointmentNumber} on ${appointment.date} (${appointment.time})`,
             },
-            unit_amount: Math.round(payableAmount * 100),
+            unit_amount: Math.round(finalPrice * 100),
           },
           quantity: 1,
         },
       ],
-      mode: 'payment',
-      customer_email: appointment.email,
-      success_url: `${appUrl}/appointments/${slug}?payment=success&session_id={CHECKOUT_SESSION_ID}`,
-      cancel_url: `${appUrl}/appointments/${slug}?payment=cancelled`,
       metadata: {
+        type: 'appointment',
         appointmentId: String(appointment._id),
-        businessSlug: slug,
+        appointmentNumber: appointment.appointmentNumber,
+        businessId: String(appointment.businessId),
+        companyId: String(appointment.companyId),
+        serviceId: String(appointment.serviceId),
+        couponId: validCouponId || '',
+        couponCode: cleanCouponCode || '',
+        discountAmount: String(discountAmount),
+        finalAmount: String(finalPrice),
       },
+      success_url: resolvedSuccessUrl,
+      cancel_url: resolvedCancelUrl,
     });
 
-    return { success: true, url: session.url };
-  } catch (err: unknown) {
-    console.error('createAppointmentStripeSessionAction error:', err);
     return {
-      success: false,
-      error: err instanceof Error ? err.message : 'Failed to create Stripe payment session.',
+      success: true,
+      url: session.url,
+      sessionId: session.id,
     };
+  } catch (err) {
+    const message = err instanceof Error ? err.message : 'Failed to initiate Stripe checkout.';
+    return { success: false, error: message };
   }
 }
 
+/**
+ * Instantly verifies an appointment's Stripe payment session on client redirect,
+ * providing zero-latency confirmation without waiting for webhook delivery.
+ */
 export async function verifyAppointmentStripePaymentAction(
   sessionId: string
-): Promise<{ success: boolean; details?: ConfirmedBookingDetails; error?: string }> {
+): Promise<VerifyStripePaymentResponse> {
   try {
-    if (!sessionId || !stripeSecretKey) {
-      return { success: false, error: 'Invalid session or missing Stripe key.' };
+    if (!sessionId || !sessionId.trim()) {
+      return { success: false, error: 'Session ID is required.' };
+    }
+
+    const session = await stripe.checkout.sessions.retrieve(sessionId.trim());
+    if (!session) {
+      return { success: false, error: 'Stripe session not found.' };
+    }
+
+    if (session.payment_status !== 'paid') {
+      return { success: false, error: 'Payment is not completed yet.' };
+    }
+
+    const metadata = session.metadata || {};
+    const appointmentId = metadata.appointmentId;
+
+    if (!appointmentId || !Types.ObjectId.isValid(appointmentId)) {
+      return { success: false, error: 'Invalid appointment reference in session metadata.' };
     }
 
     await connectToDatabase();
-    const session = await stripe.checkout.sessions.retrieve(sessionId);
 
-    if (session.payment_status !== 'paid') {
-      return { success: false, error: 'Payment has not been completed.' };
+    const appointment = await Appointment.findById(appointmentId);
+    if (!appointment) {
+      return { success: false, error: 'Appointment record not found.' };
     }
 
-    const appointmentId = session.metadata?.appointmentId;
-    if (!appointmentId) {
-      return { success: false, error: 'Appointment ID not found in session metadata.' };
+    const paidAmount = session.amount_total ? session.amount_total / 100 : appointment.price;
+
+    // Idempotent state update
+    if (appointment.paymentStatus !== 'paid') {
+      appointment.paymentStatus = 'paid';
+      appointment.appointmentStatus = 'Confirmed';
+      appointment.paymentType = 'Stripe';
+
+      const timestamp = new Date().toLocaleString();
+      const log = `[${timestamp}] Stripe payment confirmed (Txn: ${session.payment_intent || session.id})`;
+      appointment.notes = appointment.notes ? `${appointment.notes}\n${log}` : log;
+      await appointment.save();
     }
 
-    const updatedApt = await Appointment.findByIdAndUpdate(
-      appointmentId,
-      {
-        paymentStatus: 'paid',
+    // Idempotently record payment ledger entry
+    const txnId = (session.payment_intent as string) || session.id;
+    const existingPayment = await AppointmentPayment.findOne({
+      $or: [{ txnId }, { appointmentId: appointment._id }],
+    });
+
+    if (existingPayment) {
+      existingPayment.paymentType = 'Stripe';
+      existingPayment.status = 'completed';
+      existingPayment.finalAmount = paidAmount;
+      existingPayment.discountAmount = Number(metadata.discountAmount || 0);
+      existingPayment.txnId = txnId;
+      existingPayment.receiptUrl = session.customer_details?.email || '';
+      await existingPayment.save();
+    } else {
+      await AppointmentPayment.create({
+        appointmentId: appointment._id,
+        companyId: appointment.companyId,
+        businessId: appointment.businessId,
         paymentType: 'Stripe',
-        appointmentStatus: 'confirmed',
-        statusColor: '#27a93d',
-      },
-      { new: true }
-    )
-      .populate<{ serviceId: IService }>('serviceId')
-      .populate<{ staffId: IStaff }>('staffId')
-      .populate<{ businessId: IBusiness }>('businessId')
-      .lean();
-
-    if (!updatedApt) {
-      return { success: false, error: 'Appointment not found in database.' };
+        amount: appointment.price,
+        discountAmount: Number(metadata.discountAmount || 0),
+        finalAmount: paidAmount,
+        paymentDate: new Date(),
+        txnId,
+        receiptUrl: session.customer_details?.email || '',
+        status: 'completed',
+      });
     }
 
-    const business = updatedApt.businessId;
-    const service = updatedApt.serviceId;
-    const staff = updatedApt.staffId;
+    if (metadata.couponId) {
+      await Coupon.findByIdAndUpdate(metadata.couponId, { $inc: { usedCount: 1 } });
+    }
 
-    const details: ConfirmedBookingDetails = {
-      appointmentNumber: updatedApt.appointmentNumber,
-      businessSlug: business?.slug || '',
-      businessName: business?.name || 'Company',
-      serviceName: service?.name || 'Service',
-      staffName: staff?.name || 'Any Specialist',
-      locationName: 'Main Location',
-      date: updatedApt.date,
-      time: updatedApt.time,
-      customerName: updatedApt.name,
-      customerEmail: updatedApt.email,
-      price: updatedApt.price || service?.price || 0,
-      currencySymbol: business?.currency || '$',
-    };
-
-    return { success: true, details };
-  } catch (err: unknown) {
-    console.error('verifyAppointmentStripePaymentAction error:', err);
     return {
-      success: false,
-      error: err instanceof Error ? err.message : 'Failed to verify Stripe payment.',
+      success: true,
+      appointmentNumber: appointment.appointmentNumber,
+      paymentStatus: 'paid',
+      amount: paidAmount,
     };
+  } catch (err) {
+    const message = err instanceof Error ? err.message : 'Failed to verify payment session.';
+    return { success: false, error: message };
   }
 }
 
+/**
+ * Uploads a bank transfer payment receipt / slip (JPG, PNG, WEBP, PDF up to 5MB).
+ */
 export async function uploadReceiptAction(
   formData: FormData
-): Promise<{ success: boolean; url?: string; error?: string }> {
+): Promise<UploadReceiptResponse> {
   try {
-    const file = formData.get('file') as File | null;
+    const file = formData.get('receipt') as File | null;
     if (!file) {
-      return { success: false, error: 'No file provided.' };
-    }
-
-    if (file.size > 5 * 1024 * 1024) {
-      return { success: false, error: 'File size exceeds 5MB limit.' };
+      return { success: false, error: 'No receipt file provided.' };
     }
 
     const allowedMimeTypes = ['image/jpeg', 'image/png', 'image/webp', 'application/pdf'];
     if (!allowedMimeTypes.includes(file.type)) {
-      return { success: false, error: 'Only PNG, JPG, WEBP, and PDF files are allowed.' };
+      return {
+        success: false,
+        error: 'Invalid file type. Please upload a JPG, PNG, WEBP image or PDF document.',
+      };
+    }
+
+    const maxSizeBytes = 5 * 1024 * 1024; // 5MB
+    if (file.size > maxSizeBytes) {
+      return { success: false, error: 'Receipt file size cannot exceed 5MB.' };
     }
 
     const bytes = await file.arrayBuffer();
     const buffer = Buffer.from(bytes);
 
-    const uploadsDir = path.join(process.cwd(), 'public', 'uploads', 'receipts');
-    await fs.mkdir(uploadsDir, { recursive: true });
+    const ext = file.name.split('.').pop()?.toLowerCase() || 'jpg';
+    const uniqueId = crypto.randomUUID().slice(0, 8);
+    const filename = `receipt_${Date.now()}_${uniqueId}.${ext}`;
 
-    const safeName = file.name.replace(/[^a-zA-Z0-9.-]/g, '_');
-    const filename = `receipt_${Date.now()}_${safeName}`;
-    const filePath = path.join(uploadsDir, filename);
+    const uploadDir = path.join(process.cwd(), 'public', 'uploads', 'receipts');
+    await fs.mkdir(uploadDir, { recursive: true });
 
+    const filePath = path.join(uploadDir, filename);
     await fs.writeFile(filePath, buffer);
+
     const publicUrl = `/uploads/receipts/${filename}`;
 
-    return { success: true, url: publicUrl };
-  } catch (err: unknown) {
-    console.error('uploadReceiptAction error:', err);
     return {
-      success: false,
-      error: err instanceof Error ? err.message : 'Failed to upload receipt.',
+      success: true,
+      url: publicUrl,
+      filename,
     };
+  } catch (err) {
+    const message = err instanceof Error ? err.message : 'Failed to upload receipt.';
+    return { success: false, error: message };
   }
 }
 
-export async function submitBankTransferReceiptAction(input: {
-  appointmentId: string;
-  receiptUrl?: string;
-  bankName?: string;
-  transactionReference?: string;
-}): Promise<{ success: boolean; error?: string }> {
+/**
+ * Submits bank transfer details and payment proof for an appointment.
+ */
+export async function submitBankTransferReceiptAction(
+  input: SubmitBankTransferInput
+): Promise<SubmitBankTransferResponse> {
   try {
+    const { appointmentId, receiptUrl, bankName, transactionReference, notes } = input;
+
+    if (!appointmentId || !Types.ObjectId.isValid(appointmentId)) {
+      return { success: false, error: 'Invalid appointment ID provided.' };
+    }
+
+    if (!receiptUrl || !receiptUrl.trim()) {
+      return { success: false, error: 'Please provide a valid receipt upload URL.' };
+    }
+
     await connectToDatabase();
-    const appointment = await Appointment.findById(input.appointmentId);
+
+    const appointment = await Appointment.findById(appointmentId);
     if (!appointment) {
       return { success: false, error: 'Appointment not found.' };
     }
 
     appointment.paymentType = 'BankTransfer';
-    appointment.paymentStatus = 'unpaid';
-    appointment.appointmentStatus = 'pending';
+    appointment.attachment = receiptUrl.trim();
 
-    if (input.receiptUrl) {
-      appointment.attachment = input.receiptUrl;
-    }
-
-    const bankNote = [
-      input.bankName ? `Bank: ${input.bankName}` : '',
-      input.transactionReference ? `Ref: ${input.transactionReference}` : '',
+    const timestamp = new Date().toLocaleString();
+    const details = [
+      `[${timestamp}] Bank Transfer Submitted`,
+      bankName?.trim() ? `Bank: ${bankName.trim()}` : null,
+      transactionReference?.trim() ? `Ref: ${transactionReference.trim()}` : null,
+      notes?.trim() ? `Notes: ${notes.trim()}` : null,
     ]
       .filter(Boolean)
-      .join(', ');
+      .join(' | ');
 
-    if (bankNote) {
-      appointment.notes = appointment.notes
-        ? `${appointment.notes} | Bank Transfer: ${bankNote}`
-        : `Bank Transfer: ${bankNote}`;
+    const updatedNotes = appointment.notes ? `${appointment.notes}\n${details}` : details;
+
+    await Appointment.findByIdAndUpdate(appointmentId, {
+      paymentType: 'BankTransfer',
+      attachment: receiptUrl.trim(),
+      notes: updatedNotes,
+    });
+
+    // Upsert pending payment record
+    const txnId = transactionReference?.trim() || `BT-${Date.now()}`;
+    const existingPayment = await AppointmentPayment.findOne({ appointmentId: appointment._id });
+
+    if (existingPayment) {
+      existingPayment.paymentType = 'BankTransfer';
+      existingPayment.receiptUrl = receiptUrl.trim();
+      existingPayment.txnId = txnId;
+      existingPayment.status = 'pending';
+      await existingPayment.save();
+    } else {
+      await AppointmentPayment.create({
+        appointmentId: appointment._id,
+        companyId: appointment.companyId,
+        businessId: appointment.businessId,
+        paymentType: 'BankTransfer',
+        amount: appointment.price,
+        discountAmount: 0,
+        finalAmount: appointment.price,
+        paymentDate: new Date(),
+        txnId,
+        receiptUrl: receiptUrl.trim(),
+        status: 'pending',
+      });
     }
 
-    await appointment.save();
-    return { success: true };
-  } catch (err: unknown) {
-    console.error('submitBankTransferReceiptAction error:', err);
+    safeRevalidate('/customer');
+    safeRevalidate(`/find-appointment/${appointment.appointmentNumber}`);
+
     return {
-      success: false,
-      error: err instanceof Error ? err.message : 'Failed to submit bank transfer details.',
+      success: true,
+      appointmentNumber: appointment.appointmentNumber,
+      message: 'Bank transfer proof submitted successfully. Pending business verification.',
     };
+  } catch (err) {
+    const message = err instanceof Error ? err.message : 'Failed to submit bank transfer.';
+    return { success: false, error: message };
   }
 }

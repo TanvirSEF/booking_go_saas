@@ -8,6 +8,8 @@ import { Category } from '../models/Category';
 import { Service } from '../models/Service';
 import { Staff } from '../models/Staff';
 import { CustomStatus } from '../models/CustomStatus';
+import { Appointment } from '../models/Appointment';
+import { AppointmentPayment } from '../models/AppointmentPayment';
 
 const MONGODB_URI = process.env.MONGODB_URI;
 
@@ -321,6 +323,48 @@ async function seed() {
         order: st.order,
       });
     }
+  }
+
+  // 10. Seed Sample Appointment (#APP0001 - John Doe)
+  console.log('📅 Seeding Sample Appointment (#APP0001)...');
+  let sampleAppointment = await Appointment.findOne({ appointmentNumber: '#APP0001' });
+  const todayStr = new Date().toISOString().split('T')[0];
+  if (!sampleAppointment) {
+    sampleAppointment = await Appointment.create({
+      appointmentNumber: '#APP0001',
+      companyId: companyUser._id,
+      businessId: business._id,
+      customerType: 'guest-user',
+      name: 'John Doe',
+      email: 'johndoe@example.com',
+      contact: '+1 555-0144',
+      locationId: location._id,
+      serviceId: haircutService._id,
+      staffId: staff._id,
+      date: todayStr,
+      time: '10:00 - 10:30',
+      durationMinutes: 30,
+      price: 45,
+      notes: 'First time client, prefers shorter on sides.',
+      paymentType: 'Manually',
+      paymentStatus: 'paid',
+      appointmentStatus: 'Confirmed',
+      statusColor: '#10b981',
+    });
+
+    await AppointmentPayment.create({
+      appointmentId: sampleAppointment._id,
+      companyId: companyUser._id,
+      businessId: business._id,
+      paymentType: 'Manually',
+      amount: 45,
+      discountAmount: 0,
+      couponAmount: 0,
+      taxAmount: 0,
+      finalAmount: 45,
+      paymentDate: new Date(),
+      status: 'completed',
+    });
   }
 
   console.log('----------------------------------------------------');

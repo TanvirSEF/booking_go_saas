@@ -76,8 +76,8 @@
   --sidebar-foreground: oklch(0.141 0.005 285.823);
   --sidebar-primary: #584ED2;
   --sidebar-primary-foreground: #ffffff;
-  --sidebar-accent: oklch(0.967 0.001 286.375);
-  --sidebar-accent-foreground: oklch(0.21 0.006 285.885);
+  --sidebar-accent: #584ED2;
+  --sidebar-accent-foreground: #ffffff;
   --sidebar-border: oklch(0.92 0.004 286.32);
   --sidebar-ring: #584ED2;
 }
@@ -110,10 +110,34 @@
   --sidebar-foreground: oklch(0.985 0 0);
   --sidebar-primary: #685fe2;
   --sidebar-primary-foreground: #ffffff;
-  --sidebar-accent: oklch(0.274 0.006 286.033);
-  --sidebar-accent-foreground: oklch(0.985 0 0);
+  --sidebar-accent: #584ED2;
+  --sidebar-accent-foreground: #ffffff;
   --sidebar-border: oklch(1 0 0 / 10%);
   --sidebar-ring: #685fe2;
+}
+
+[data-theme="company"] {
+  --primary: #059669;
+  --primary-foreground: #ffffff;
+  --ring: #059669;
+  --sidebar-primary: #059669;
+  --sidebar-primary-foreground: #ffffff;
+  --sidebar-ring: #059669;
+  --sidebar-accent: #059669;
+  --sidebar-accent-foreground: #ffffff;
+}
+
+.dark [data-theme="company"],
+[data-theme="company"].dark,
+[data-theme="company"] .dark {
+  --primary: #10b981;
+  --primary-foreground: #ffffff;
+  --ring: #10b981;
+  --sidebar-primary: #10b981;
+  --sidebar-primary-foreground: #ffffff;
+  --sidebar-ring: #10b981;
+  --sidebar-accent: #10b981;
+  --sidebar-accent-foreground: #ffffff;
 }
 
 @layer base {
@@ -144,4 +168,4 @@
 /* Scoped to AnimatedThemeToggler — the toggler sets the data-attribute and the variable only during a theme toggle. */
 html[data-magicui-theme-vt="active"]::view-transition-group(root) {
   animation-duration: var(--magicui-theme-toggle-vt-duration);
-}
+}

@@ -2,8 +2,6 @@ import Link from "next/link";
 import {
   IconLink,
   IconShare,
-  IconCopy,
-  IconQrcode,
   IconUsers,
   IconShoppingCart,
   IconTrophy,
@@ -16,6 +14,7 @@ import { Order } from "@/models/Order";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { RecentOrdersChart } from "@/components/super-admin/recent-orders-chart";
+import { LandingQrCard } from "@/components/super-admin/landing-qr-card";
 
 export const metadata = {
   title: "Dashboard | Super Admin",
@@ -108,22 +107,8 @@ export default async function SuperAdminDashboardPage() {
           </div>
         </Card>
 
-        {/* 2. QR Code Card */}
-        <Card className="flex min-h-[180px] flex-col items-center justify-between rounded-2xl border-none bg-[#d5f3e9] p-4 text-center shadow-xs lg:col-span-2">
-          <div className="flex flex-1 items-center justify-center">
-            <div className="flex size-24 items-center justify-center rounded-xl bg-white/70 p-1.5 text-[#072a33] shadow-2xs">
-              <IconQrcode size={76} stroke={1.5} className="text-[#072a33]" />
-            </div>
-          </div>
-
-          <button
-            type="button"
-            className="flex w-full items-center justify-center gap-1.5 rounded-lg bg-[#072a33] py-1.5 px-3 text-xs font-semibold text-white transition-opacity hover:opacity-90"
-          >
-            <span>Landing Page</span>
-            <IconCopy size={13} />
-          </button>
-        </Card>
+        {/* 2. QR Code Card (Using qrcode package) */}
+        <LandingQrCard />
 
         {/* 3. Total Users Card */}
         <Card className="relative flex min-h-[180px] flex-col justify-between overflow-hidden rounded-2xl border-none bg-[#fee9ee] p-5 shadow-xs lg:col-span-2">
