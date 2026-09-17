@@ -9,6 +9,7 @@ import {
   IconMapPin,
   IconScissors,
   IconSparkles,
+  IconUsers,
 } from "@tabler/icons-react";
 import {
   Sidebar,
@@ -179,6 +180,24 @@ export function CompanySidebar({ businessName, ...props }: CompanySidebarProps) 
                   </CollapsibleContent>
                 </SidebarMenuItem>
               </Collapsible>
+
+              {/* Staff Specialists Management */}
+              <SidebarMenuItem>
+                <SidebarMenuButton
+                  asChild
+                  isActive={pathname.startsWith("/dashboard/staff")}
+                  className={cn(
+                    "rounded-xl font-medium transition-colors",
+                    pathname.startsWith("/dashboard/staff") &&
+                    "bg-primary text-primary-foreground hover:bg-primary hover:text-primary-foreground shadow-xs font-semibold"
+                  )}
+                >
+                  <Link href="/dashboard/staff">
+                    <IconUsers size={18} />
+                    <span>Staff</span>
+                  </Link>
+                </SidebarMenuButton>
+              </SidebarMenuItem>
             </SidebarMenu>
           </SidebarGroupContent>
         </SidebarGroup>

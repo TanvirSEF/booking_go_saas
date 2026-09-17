@@ -62,7 +62,7 @@ export function DeleteConfirmDialog({
           </div>
         </div>
 
-        <DialogFooter className="gap-2 sm:gap-0 pt-3 flex flex-row items-center justify-end">
+        <DialogFooter className="gap-2 pt-3 flex flex-row items-center justify-end">
           <Button
             type="button"
             variant="outline"
