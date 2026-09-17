@@ -430,3 +430,76 @@ export async function sendAppointmentCancellationEmail(params: {
     fromName: params.businessName,
   });
 }
+
+/**
+ * 5. Send Appointment Reminder Email
+ */
+export async function sendAppointmentReminderEmail(params: {
+  customerName: string;
+  customerEmail: string;
+  appointmentNumber: string;
+  serviceName: string;
+  staffName: string;
+  locationName: string;
+  locationAddress?: string;
+  date: string;
+  time: string;
+  durationMinutes: number;
+  businessName: string;
+  businessSlug: string;
+}): Promise<MailerResult> {
+  const gcalUrl = getGoogleCalendarUrl({
+    title: `${params.serviceName} - ${params.businessName}`,
+    description: `Upcoming Appointment Ref: ${params.appointmentNumber}\\nStaff: ${params.staffName}\\nLocation: ${params.locationName}`,
+    location: params.locationAddress || params.locationName,
+    dateStr: params.date,
+    timeSlot: params.time,
+    appointmentNumber: params.appointmentNumber,
+  });
+
+  const content = `
+    <div style="text-align: center; margin-bottom: 24px;">
+      <span class="badge" style="background: #e0e7ff; color: #3730a3;">Upcoming Appointment</span>
+      <h2 style="margin: 12px 0 6px; font-size: 22px; color: #0f172a;">Reminder: You have an upcoming booking</h2>
+      <p style="margin: 0; color: #64748b; font-size: 14px;">Hello ${params.customerName}, this is a friendly reminder for your appointment tomorrow with ${params.businessName}.</p>
+    </div>
+
+    <table class="table-details">
+      <tr>
+        <td class="label">Appointment Ref</td>
+        <td class="value"><strong style="font-family: monospace;">${params.appointmentNumber}</strong></td>
+      </tr>
+      <tr>
+        <td class="label">Service</td>
+        <td class="value">${params.serviceName} (${params.durationMinutes} mins)</td>
+      </tr>
+      <tr>
+        <td class="label">Staff Specialist</td>
+        <td class="value">${params.staffName}</td>
+      </tr>
+      <tr>
+        <td class="label">Location</td>
+        <td class="value">${params.locationName}${params.locationAddress ? ` &bull; <span style="font-size: 12px; color: #64748b;">${params.locationAddress}</span>` : ''}</td>
+      </tr>
+      <tr>
+        <td class="label">Date & Time</td>
+        <td class="value" style="color: #0f172a; font-weight: 700; font-size: 15px;">${params.date} at ${params.time}</td>
+      </tr>
+    </table>
+
+    <div class="button-group">
+      <a href="${gcalUrl}" target="_blank" class="btn btn-primary">📅 Open in Calendar</a>
+    </div>
+
+    <p style="color: #64748b; font-size: 12px; text-align: center; margin-top: 24px;">
+      Need to reschedule or contact us? Please visit our portal. We look forward to seeing you!
+    </p>
+  `;
+
+  return sendEmail({
+    to: params.customerEmail,
+    subject: `Reminder: Your appointment with ${params.businessName} on ${params.date} at ${params.time}`,
+    html: wrapInEmailTemplate(content, params.businessName),
+    fromName: params.businessName,
+  });
+}
