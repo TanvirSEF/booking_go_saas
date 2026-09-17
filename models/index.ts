@@ -20,3 +20,4 @@ export * from './ContactUs';
 export * from './Subscribe';
 export * from './Notification';
 export * from './Blog';
+export * from './LoginDetail';
