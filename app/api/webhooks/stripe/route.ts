@@ -6,6 +6,8 @@ import { User } from "@/models/User";
 import { Order } from "@/models/Order";
 import { Coupon } from "@/models/Coupon";
 import { UserCoupon } from "@/models/UserCoupon";
+import { Appointment } from "@/models/Appointment";
+import { AppointmentPayment } from "@/models/AppointmentPayment";
 
 export const dynamic = "force-dynamic";
 
@@ -58,6 +60,56 @@ export async function POST(req: Request) {
           couponId,
         } = metadata;
 
+        // 1. Handle Appointment Booking Payments
+        if (metadata.type === "appointment" || metadata.appointmentId) {
+          const appointmentId = metadata.appointmentId;
+          const appointment = await Appointment.findById(appointmentId);
+
+          if (appointment) {
+            const paidAmount = session.amount_total
+              ? session.amount_total / 100
+              : appointment.price;
+
+            if (appointment.paymentStatus !== "paid") {
+              appointment.paymentStatus = "paid";
+              appointment.appointmentStatus = "Confirmed";
+              appointment.paymentType = "Stripe";
+
+              const timestamp = new Date().toLocaleString();
+              const log = `[${timestamp}] Stripe payment confirmed via Webhook (Txn: ${session.payment_intent || session.id})`;
+              appointment.notes = appointment.notes ? `${appointment.notes}\n${log}` : log;
+              await appointment.save();
+            }
+
+            const txnId = (session.payment_intent as string) || session.id;
+            const existingPayment = await AppointmentPayment.findOne({ txnId });
+
+            if (!existingPayment) {
+              await AppointmentPayment.create({
+                appointmentId: appointment._id,
+                companyId: appointment.companyId,
+                businessId: appointment.businessId,
+                paymentType: "Stripe",
+                amount: appointment.price,
+                discountAmount: Number(metadata.discountAmount || 0),
+                finalAmount: paidAmount,
+                paymentDate: new Date(),
+                txnId,
+                receiptUrl: session.customer_details?.email || "",
+                status: "completed",
+              });
+
+              if (metadata.couponId) {
+                await Coupon.findByIdAndUpdate(metadata.couponId, {
+                  $inc: { usedCount: 1 },
+                });
+              }
+            }
+          }
+          break;
+        }
+
+        // 2. Handle SaaS Plan Subscription Payments
         if (userId && planId) {
           const isYearly = billingType === "yearly";
           const expireDate = new Date();
