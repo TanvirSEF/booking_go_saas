@@ -13,6 +13,7 @@ import {
   IconScissors,
   IconSparkles,
   IconUsers,
+  IconUsersGroup,
 } from "@tabler/icons-react";
 import {
   Sidebar,
@@ -215,6 +216,24 @@ export function CompanySidebar({ businessName, ...props }: CompanySidebarProps) 
                   <Link href="/dashboard/staff">
                     <IconUsers size={18} />
                     <span>Staff</span>
+                  </Link>
+                </SidebarMenuButton>
+              </SidebarMenuItem>
+
+              {/* Customers CRM Management */}
+              <SidebarMenuItem>
+                <SidebarMenuButton
+                  asChild
+                  isActive={pathname.startsWith("/dashboard/customers")}
+                  className={cn(
+                    "rounded-xl font-medium transition-colors",
+                    pathname.startsWith("/dashboard/customers") &&
+                    "bg-primary text-primary-foreground hover:bg-primary hover:text-primary-foreground shadow-xs font-semibold"
+                  )}
+                >
+                  <Link href="/dashboard/customers">
+                    <IconUsersGroup size={18} />
+                    <span>Customers</span>
                   </Link>
                 </SidebarMenuButton>
               </SidebarMenuItem>
