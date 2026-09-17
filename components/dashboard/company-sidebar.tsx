@@ -14,7 +14,9 @@ import {
   IconLayoutDashboard,
   IconMapPin,
   IconScissors,
+  IconSettings,
   IconSparkles,
+  IconAdjustmentsHorizontal,
   IconUsers,
   IconUsersGroup,
 } from "@tabler/icons-react";
@@ -138,6 +140,21 @@ export const companyNavigationData: SidebarGroupData[] = [
         title: "Custom Fields",
         url: "/dashboard/custom-fields",
         icon: IconForms,
+      },
+      {
+        title: "Custom Statuses",
+        url: "/dashboard/custom-status",
+        icon: IconAdjustmentsHorizontal,
+      },
+    ],
+  },
+  {
+    group: "Settings",
+    items: [
+      {
+        title: "Company Settings",
+        url: "/dashboard/settings",
+        icon: IconSettings,
       },
     ],
   },
