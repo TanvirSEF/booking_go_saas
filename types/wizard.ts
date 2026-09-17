@@ -44,6 +44,8 @@ export interface ClientHoliday {
   description?: string;
 }
 
+export type WizardLayout = 'Formlayout1' | 'Formlayout2' | string;
+
 export interface ClientBusiness {
   id: string;
   name: string;
@@ -51,7 +53,7 @@ export interface ClientBusiness {
   currency: string;
   currencySymbol: string;
   themeColor: string;
-  layout: string;
+  layout: WizardLayout;
   logoDark?: string;
   logoLight?: string;
   appointmentPrefix?: string;
@@ -59,6 +61,7 @@ export interface ClientBusiness {
   businessHours?: ClientBusinessHour[];
   holidays?: ClientHoliday[];
 }
+
 
 export interface ClientLocation {
   id: string;
