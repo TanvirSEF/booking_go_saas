@@ -4,6 +4,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
   IconChevronRight,
+  IconClock,
   IconFolder,
   IconLayoutDashboard,
   IconMapPin,
@@ -195,6 +196,33 @@ export function CompanySidebar({ businessName, ...props }: CompanySidebarProps) 
                   <Link href="/dashboard/staff">
                     <IconUsers size={18} />
                     <span>Staff</span>
+                  </Link>
+                </SidebarMenuButton>
+              </SidebarMenuItem>
+            </SidebarMenu>
+          </SidebarGroupContent>
+        </SidebarGroup>
+
+        {/* Settings Group */}
+        <SidebarGroup>
+          <SidebarGroupLabel className="text-[11px] font-semibold tracking-wider text-muted-foreground uppercase">
+            Settings
+          </SidebarGroupLabel>
+          <SidebarGroupContent>
+            <SidebarMenu className="gap-1">
+              <SidebarMenuItem>
+                <SidebarMenuButton
+                  asChild
+                  isActive={pathname.startsWith("/dashboard/settings/hours")}
+                  className={cn(
+                    "rounded-xl font-medium transition-colors",
+                    pathname.startsWith("/dashboard/settings/hours") &&
+                    "bg-primary text-primary-foreground hover:bg-primary hover:text-primary-foreground shadow-xs font-semibold"
+                  )}
+                >
+                  <Link href="/dashboard/settings/hours">
+                    <IconClock size={18} />
+                    <span>Operating Hours</span>
                   </Link>
                 </SidebarMenuButton>
               </SidebarMenuItem>
