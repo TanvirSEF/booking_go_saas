@@ -1,4 +1,9 @@
-import { Calendar, CheckCircle2, Clock, XCircle } from "lucide-react";
+import {
+  IconCalendar,
+  IconClock,
+  IconCircleCheck,
+  IconCircleX,
+} from "@tabler/icons-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { BookingTabs } from "@/components/customer/booking-tabs";
 import { getCustomerDashboardAction } from "@/actions/customer-appointment";
@@ -21,30 +26,30 @@ export default async function CustomerDashboardPage() {
     {
       title: "Total Bookings",
       value: total,
-      icon: Calendar,
-      color: "text-blue-600 dark:text-blue-400",
-      bgColor: "bg-blue-50 dark:bg-blue-950/40",
+      icon: IconCalendar,
+      color: "text-primary",
+      bgColor: "bg-primary/10",
     },
     {
       title: "Upcoming",
       value: upcoming,
-      icon: Clock,
+      icon: IconClock,
       color: "text-amber-600 dark:text-amber-400",
-      bgColor: "bg-amber-50 dark:bg-amber-950/40",
+      bgColor: "bg-amber-500/10",
     },
     {
       title: "Completed",
       value: completed,
-      icon: CheckCircle2,
+      icon: IconCircleCheck,
       color: "text-emerald-600 dark:text-emerald-400",
-      bgColor: "bg-emerald-50 dark:bg-emerald-950/40",
+      bgColor: "bg-emerald-500/10",
     },
     {
       title: "Cancelled",
       value: cancelled,
-      icon: XCircle,
-      color: "text-rose-600 dark:text-rose-400",
-      bgColor: "bg-rose-50 dark:bg-rose-950/40",
+      icon: IconCircleX,
+      color: "text-destructive",
+      bgColor: "bg-destructive/10",
     },
   ];
 
@@ -63,7 +68,7 @@ export default async function CustomerDashboardPage() {
         {metricCards.map((card) => {
           const Icon = card.icon;
           return (
-            <Card key={card.title} className="border-border/80 bg-white dark:bg-zinc-900">
+            <Card key={card.title} className="border-border/60 bg-card text-card-foreground shadow-xs">
               <CardContent className="p-4 sm:p-6 flex items-center justify-between">
                 <div>
                   <p className="text-xs sm:text-sm font-medium text-muted-foreground">

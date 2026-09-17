@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { toast } from "sonner";
-import { Calendar as CalendarIcon, Clock, Loader2, RotateCw } from "lucide-react";
+import { IconCalendar, IconClock, IconLoader2, IconRefresh } from "@tabler/icons-react";
 import {
   Dialog,
   DialogContent,
@@ -117,7 +117,7 @@ export function RescheduleAppointmentDialog({
         <DialogHeader>
           <div className="flex items-center gap-3">
             <div className="p-2.5 rounded-full bg-primary/10 text-primary">
-              <RotateCw className="w-5 h-5" />
+              <IconRefresh className="w-5 h-5" />
             </div>
             <div>
               <DialogTitle className="text-lg font-semibold">Reschedule Appointment</DialogTitle>
@@ -134,7 +134,7 @@ export function RescheduleAppointmentDialog({
               Select New Date
             </Label>
             <div className="relative">
-              <CalendarIcon className="w-4 h-4 absolute left-3 top-3 text-muted-foreground" />
+              <IconCalendar className="w-4 h-4 absolute left-3 top-3 text-muted-foreground" />
               <Input
                 id="reschedule-date"
                 type="date"
@@ -150,7 +150,7 @@ export function RescheduleAppointmentDialog({
           <div className="space-y-2">
             <Label className="text-xs font-medium flex items-center justify-between">
               <span>Available Time Slots</span>
-              {isLoadingSlots && <Loader2 className="w-3.5 h-3.5 animate-spin text-primary" />}
+              {isLoadingSlots && <IconLoader2 className="w-3.5 h-3.5 animate-spin text-primary" />}
             </Label>
 
             {isLoadingSlots ? (
@@ -173,7 +173,7 @@ export function RescheduleAppointmentDialog({
                     className="text-xs"
                     disabled={isPending}
                   >
-                    <Clock className="w-3 h-3 mr-1" />
+                    <IconClock className="w-3 h-3 mr-1" />
                     {slot}
                   </Button>
                 ))}
@@ -191,7 +191,7 @@ export function RescheduleAppointmentDialog({
             disabled={isPending || !selectedDate || !selectedSlot}
             className="gap-2"
           >
-            {isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : null}
+            {isPending ? <IconLoader2 className="w-4 h-4 animate-spin" /> : null}
             {isPending ? "Rescheduling..." : "Confirm Reschedule"}
           </Button>
         </DialogFooter>

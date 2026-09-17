@@ -3,7 +3,14 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
-import { User, Mail, Phone, Calendar, Loader2, Save } from "lucide-react";
+import {
+  IconUser,
+  IconMail,
+  IconPhone,
+  IconCalendar,
+  IconLoader2,
+  IconDeviceFloppy,
+} from "@tabler/icons-react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -62,10 +69,10 @@ export function ProfileForm({ initialData }: ProfileFormProps) {
   };
 
   return (
-    <Card className="border-border/80 bg-white dark:bg-zinc-900">
+    <Card className="border-border/60 bg-card text-card-foreground">
       <CardHeader>
         <CardTitle className="text-xl font-bold flex items-center gap-2">
-          <User className="w-5 h-5 text-primary" />
+          <IconUser className="w-5 h-5 text-primary" />
           Personal Information
         </CardTitle>
         <CardDescription>
@@ -78,7 +85,7 @@ export function ProfileForm({ initialData }: ProfileFormProps) {
             <div className="space-y-2">
               <Label htmlFor="name">Full Name</Label>
               <div className="relative">
-                <User className="w-4 h-4 absolute left-3 top-3 text-muted-foreground" />
+                <IconUser className="w-4 h-4 absolute left-3 top-3 text-muted-foreground" />
                 <Input
                   id="name"
                   value={name}
@@ -94,7 +101,7 @@ export function ProfileForm({ initialData }: ProfileFormProps) {
             <div className="space-y-2">
               <Label htmlFor="email">Email Address</Label>
               <div className="relative">
-                <Mail className="w-4 h-4 absolute left-3 top-3 text-muted-foreground" />
+                <IconMail className="w-4 h-4 absolute left-3 top-3 text-muted-foreground" />
                 <Input
                   id="email"
                   value={initialData.email}
@@ -107,7 +114,7 @@ export function ProfileForm({ initialData }: ProfileFormProps) {
             <div className="space-y-2">
               <Label htmlFor="contact">Phone Number</Label>
               <div className="relative">
-                <Phone className="w-4 h-4 absolute left-3 top-3 text-muted-foreground" />
+                <IconPhone className="w-4 h-4 absolute left-3 top-3 text-muted-foreground" />
                 <Input
                   id="contact"
                   value={contact}
@@ -136,7 +143,7 @@ export function ProfileForm({ initialData }: ProfileFormProps) {
             <div className="space-y-2 sm:col-span-2">
               <Label htmlFor="dob">Date of Birth</Label>
               <div className="relative">
-                <Calendar className="w-4 h-4 absolute left-3 top-3 text-muted-foreground" />
+                <IconCalendar className="w-4 h-4 absolute left-3 top-3 text-muted-foreground" />
                 <Input
                   id="dob"
                   type="date"
@@ -152,9 +159,9 @@ export function ProfileForm({ initialData }: ProfileFormProps) {
           <div className="pt-2 flex justify-end">
             <Button type="submit" disabled={isPending} className="gap-2">
               {isPending ? (
-                <Loader2 className="w-4 h-4 animate-spin" />
+                <IconLoader2 className="w-4 h-4 animate-spin" />
               ) : (
-                <Save className="w-4 h-4" />
+                <IconDeviceFloppy className="w-4 h-4" />
               )}
               {isPending ? "Saving..." : "Save Changes"}
             </Button>

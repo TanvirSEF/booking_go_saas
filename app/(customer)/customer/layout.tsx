@@ -14,8 +14,12 @@ export default async function CustomerLayout({ children }: CustomerLayoutProps) 
     redirect("/login?callbackUrl=/customer");
   }
 
+  if (session.user.role !== "customer") {
+    redirect(session.user.role === "super admin" ? "/super-admin" : "/dashboard");
+  }
+
   return (
-    <div className="min-h-screen bg-slate-50/60 dark:bg-zinc-950 flex flex-col">
+    <div className="min-h-screen bg-background text-foreground flex flex-col">
       <CustomerNav user={session.user} />
       <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-8">
         {children}

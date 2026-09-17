@@ -2,12 +2,12 @@
 
 import Link from "next/link";
 import {
-  Calendar,
-  Clock,
-  UserCheck,
-  Building2,
-  RotateCcw,
-} from "lucide-react";
+  IconCalendar,
+  IconClock,
+  IconUserCheck,
+  IconBuildingStore,
+  IconRefresh,
+} from "@tabler/icons-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -31,9 +31,9 @@ export function AppointmentCard({
       case "confirmed":
         return <Badge className="bg-emerald-500/15 text-emerald-700 dark:text-emerald-400 border-emerald-500/20">Confirmed</Badge>;
       case "completed":
-        return <Badge variant="secondary" className="bg-blue-500/15 text-blue-700 dark:text-blue-400 border-blue-500/20">Completed</Badge>;
+        return <Badge variant="secondary" className="bg-primary/15 text-primary border-primary/20">Completed</Badge>;
       case "cancelled":
-        return <Badge variant="destructive" className="bg-red-500/15 text-red-700 dark:text-red-400 border-red-500/20">Cancelled</Badge>;
+        return <Badge variant="destructive" className="bg-destructive/15 text-destructive border-destructive/20">Cancelled</Badge>;
       default:
         return <Badge variant="outline" className="bg-amber-500/15 text-amber-700 dark:text-amber-400 border-amber-500/20">Pending</Badge>;
     }
@@ -49,7 +49,7 @@ export function AppointmentCard({
     : '';
 
   return (
-    <Card className="hover:shadow-md transition-shadow border-border/80 bg-white dark:bg-zinc-900">
+    <Card className="hover:shadow-md transition-shadow border-border/60 bg-card text-card-foreground">
       <CardContent className="p-5 sm:p-6">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
           <div className="space-y-3 flex-1">
@@ -62,22 +62,22 @@ export function AppointmentCard({
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-y-1.5 gap-x-4 text-sm text-muted-foreground">
               <div className="flex items-center gap-2">
-                <Calendar className="w-4 h-4 text-primary shrink-0" />
+                <IconCalendar className="w-4 h-4 text-primary shrink-0" />
                 <span>{formattedDate || appointment.date}</span>
               </div>
               <div className="flex items-center gap-2">
-                <Clock className="w-4 h-4 text-primary shrink-0" />
+                <IconClock className="w-4 h-4 text-primary shrink-0" />
                 <span>{appointment.time}</span>
               </div>
               {appointment.staffName && (
                 <div className="flex items-center gap-2">
-                  <UserCheck className="w-4 h-4 text-muted-foreground shrink-0" />
+                  <IconUserCheck className="w-4 h-4 text-muted-foreground shrink-0" />
                   <span>Specialist: {appointment.staffName}</span>
                 </div>
               )}
               {appointment.businessName && (
                 <div className="flex items-center gap-2">
-                  <Building2 className="w-4 h-4 text-muted-foreground shrink-0" />
+                  <IconBuildingStore className="w-4 h-4 text-muted-foreground shrink-0" />
                   <span>Business: {appointment.businessName}</span>
                 </div>
               )}
@@ -109,7 +109,7 @@ export function AppointmentCard({
                     variant="ghost"
                     size="sm"
                     onClick={() => onCancelClick?.(appointment)}
-                    className="text-xs text-red-600 hover:text-red-700 hover:bg-red-50 dark:hover:bg-red-950/50"
+                    className="text-xs text-destructive hover:text-destructive hover:bg-destructive/10"
                   >
                     Cancel Booking
                   </Button>
@@ -118,7 +118,7 @@ export function AppointmentCard({
             ) : (
               <Button asChild size="sm" variant="default" className="text-xs gap-1.5">
                 <Link href={`/appointments/${appointment.businessSlug || "booking"}`}>
-                  <RotateCcw className="w-3.5 h-3.5" />
+                  <IconRefresh className="w-3.5 h-3.5" />
                   Book Again
                 </Link>
               </Button>

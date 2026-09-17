@@ -3,7 +3,7 @@
 import { useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { Calendar, History, PlusCircle } from "lucide-react";
+import { IconCalendar, IconHistory, IconPlus } from "@tabler/icons-react";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { AppointmentCard } from "@/components/customer/appointment-card";
@@ -36,12 +36,12 @@ export function BookingTabs({
   };
 
   const renderEmptyState = (type: "upcoming" | "past") => (
-    <div className="flex flex-col items-center justify-center py-16 px-4 text-center bg-white dark:bg-zinc-900 border border-border/60 rounded-xl shadow-xs">
+    <div className="flex flex-col items-center justify-center py-16 px-4 text-center bg-card text-card-foreground border border-border/60 rounded-xl shadow-xs">
       <div className="w-12 h-12 rounded-full bg-primary/10 flex items-center justify-center text-primary mb-4">
         {type === "upcoming" ? (
-          <Calendar className="w-6 h-6" />
+          <IconCalendar className="w-6 h-6" />
         ) : (
-          <History className="w-6 h-6" />
+          <IconHistory className="w-6 h-6" />
         )}
       </div>
       <h3 className="text-lg font-semibold text-foreground mb-1">
@@ -55,7 +55,7 @@ export function BookingTabs({
       {type === "upcoming" && (
         <Button asChild className="gap-2">
           <Link href="/">
-            <PlusCircle className="w-4 h-4" />
+            <IconPlus className="w-4 h-4" />
             Book New Appointment
           </Link>
         </Button>
@@ -69,11 +69,11 @@ export function BookingTabs({
         <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
           <TabsList className="grid grid-cols-2 w-full sm:w-auto">
             <TabsTrigger value="upcoming" className="gap-2">
-              <Calendar className="w-4 h-4" />
+              <IconCalendar className="w-4 h-4" />
               <span>Upcoming ({upcomingBookings.length})</span>
             </TabsTrigger>
             <TabsTrigger value="past" className="gap-2">
-              <History className="w-4 h-4" />
+              <IconHistory className="w-4 h-4" />
               <span>Past History ({pastBookings.length})</span>
             </TabsTrigger>
           </TabsList>

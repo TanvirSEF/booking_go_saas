@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { toast } from "sonner";
-import { Lock, Loader2, ShieldCheck } from "lucide-react";
+import { IconLock, IconKey, IconLoader2, IconDeviceFloppy } from "@tabler/icons-react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -17,11 +17,6 @@ export function ChangePasswordForm() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-
-    if (!currentPassword) {
-      toast.error("Please enter your current password.");
-      return;
-    }
 
     if (newPassword.length < 6) {
       toast.error("New password must be at least 6 characters long.");
@@ -43,7 +38,7 @@ export function ChangePasswordForm() {
       if (res?.error) {
         toast.error(res.error || "Failed to update password.");
       } else {
-        toast.success("Password updated successfully!");
+        toast.success("Password changed successfully!");
         setCurrentPassword("");
         setNewPassword("");
         setConfirmPassword("");
@@ -57,14 +52,14 @@ export function ChangePasswordForm() {
   };
 
   return (
-    <Card className="border-border/80 bg-white dark:bg-zinc-900">
+    <Card className="border-border/60 bg-card text-card-foreground">
       <CardHeader>
         <CardTitle className="text-xl font-bold flex items-center gap-2">
-          <Lock className="w-5 h-5 text-primary" />
+          <IconLock className="w-5 h-5 text-primary" />
           Security & Password
         </CardTitle>
         <CardDescription>
-          Ensure your account uses a strong, secure password.
+          Update your password to keep your customer account secure.
         </CardDescription>
       </CardHeader>
       <CardContent>
@@ -72,13 +67,13 @@ export function ChangePasswordForm() {
           <div className="space-y-2">
             <Label htmlFor="current-password">Current Password</Label>
             <div className="relative">
-              <Lock className="w-4 h-4 absolute left-3 top-3 text-muted-foreground" />
+              <IconKey className="w-4 h-4 absolute left-3 top-3 text-muted-foreground" />
               <Input
                 id="current-password"
                 type="password"
-                placeholder="••••••••"
                 value={currentPassword}
                 onChange={(e) => setCurrentPassword(e.target.value)}
+                placeholder="••••••••"
                 className="pl-9"
                 disabled={isPending}
                 required
@@ -89,13 +84,13 @@ export function ChangePasswordForm() {
           <div className="space-y-2">
             <Label htmlFor="new-password">New Password</Label>
             <div className="relative">
-              <Lock className="w-4 h-4 absolute left-3 top-3 text-muted-foreground" />
+              <IconLock className="w-4 h-4 absolute left-3 top-3 text-muted-foreground" />
               <Input
                 id="new-password"
                 type="password"
-                placeholder="At least 6 characters"
                 value={newPassword}
                 onChange={(e) => setNewPassword(e.target.value)}
+                placeholder="•••••••• (min 6 chars)"
                 className="pl-9"
                 disabled={isPending}
                 required
@@ -106,13 +101,13 @@ export function ChangePasswordForm() {
           <div className="space-y-2">
             <Label htmlFor="confirm-password">Confirm New Password</Label>
             <div className="relative">
-              <Lock className="w-4 h-4 absolute left-3 top-3 text-muted-foreground" />
+              <IconLock className="w-4 h-4 absolute left-3 top-3 text-muted-foreground" />
               <Input
                 id="confirm-password"
                 type="password"
-                placeholder="Confirm new password"
                 value={confirmPassword}
                 onChange={(e) => setConfirmPassword(e.target.value)}
+                placeholder="••••••••"
                 className="pl-9"
                 disabled={isPending}
                 required
@@ -121,13 +116,13 @@ export function ChangePasswordForm() {
           </div>
 
           <div className="pt-2 flex justify-end">
-            <Button type="submit" disabled={isPending} className="gap-2">
+            <Button type="submit" disabled={isPending} className="w-full gap-2">
               {isPending ? (
-                <Loader2 className="w-4 h-4 animate-spin" />
+                <IconLoader2 className="w-4 h-4 animate-spin" />
               ) : (
-                <ShieldCheck className="w-4 h-4" />
+                <IconDeviceFloppy className="w-4 h-4" />
               )}
-              {isPending ? "Updating Password..." : "Update Password"}
+              {isPending ? "Updating..." : "Change Password"}
             </Button>
           </div>
         </form>

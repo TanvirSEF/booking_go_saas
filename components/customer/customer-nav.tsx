@@ -4,13 +4,13 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { signOut } from "next-auth/react";
 import {
-  CalendarDays,
-  User,
-  LogOut,
-  Menu,
-  Sparkles,
-  ShieldCheck,
-} from "lucide-react";
+  IconCalendar,
+  IconUser,
+  IconLogout,
+  IconMenu,
+  IconCalendarEvent,
+} from "@tabler/icons-react";
+import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -19,18 +19,13 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import {
-  Sheet,
-  SheetContent,
-  SheetHeader,
-  SheetTitle,
-  SheetTrigger,
-} from "@/components/ui/sheet";
-import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Sheet, SheetContent, SheetTrigger, SheetHeader, SheetTitle } from "@/components/ui/sheet";
+import { useState } from "react";
+import { cn } from "@/lib/utils";
 
 interface CustomerNavProps {
-  user?: {
+  user: {
     name?: string | null;
     email?: string | null;
     image?: string | null;
@@ -39,35 +34,37 @@ interface CustomerNavProps {
 
 export function CustomerNav({ user }: CustomerNavProps) {
   const pathname = usePathname();
+  const [mobileOpen, setMobileOpen] = useState(false);
 
   const navLinks = [
-    { href: "/customer", label: "My Bookings", icon: CalendarDays },
-    { href: "/customer/profile", label: "Profile & Security", icon: User },
+    { href: "/customer", label: "My Bookings", icon: IconCalendar },
+    { href: "/customer/profile", label: "Profile Settings", icon: IconUser },
   ];
 
-  const getInitials = (name?: string | null, email?: string | null) => {
-    if (name) {
-      return name
+  const initials = user.name
+    ? user.name
         .split(" ")
         .map((n) => n[0])
         .join("")
         .toUpperCase()
-        .slice(0, 2);
-    }
-    return email?.charAt(0).toUpperCase() || "C";
-  };
+        .slice(0, 2)
+    : "CU";
 
   return (
-    <header className="sticky top-0 z-40 w-full border-b bg-white/90 dark:bg-zinc-900/90 backdrop-blur-md">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
-        <div className="flex items-center gap-8">
-          <Link href="/customer" className="flex items-center gap-2 font-bold text-lg text-primary">
-            <div className="p-2 rounded-lg bg-primary/10 text-primary">
-              <Sparkles className="w-5 h-5" />
+    <header className="sticky top-0 z-40 w-full border-b border-border/60 bg-card/95 backdrop-blur-md">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between gap-4">
+        {/* Brand Logo */}
+        <div className="flex items-center gap-6">
+          <Link href="/customer" className="flex items-center gap-2.5">
+            <div className="w-9 h-9 rounded-xl bg-primary flex items-center justify-center text-primary-foreground shadow-xs">
+              <IconCalendarEvent className="w-5 h-5" />
             </div>
-            <span>Customer Portal</span>
+            <span className="font-bold text-lg tracking-tight text-foreground">
+              Booking<span className="text-primary">Go</span>
+            </span>
           </Link>
 
+          {/* Desktop Navigation */}
           <nav className="hidden md:flex items-center gap-1">
             {navLinks.map((link) => {
               const Icon = link.icon;
@@ -76,11 +73,12 @@ export function CustomerNav({ user }: CustomerNavProps) {
                 <Link
                   key={link.href}
                   href={link.href}
-                  className={`flex items-center gap-2 px-3 py-2 rounded-md text-sm font-medium transition-colors ${
+                  className={cn(
+                    "flex items-center gap-2 px-3.5 py-2 rounded-lg text-sm font-medium transition-colors",
                     isActive
-                      ? "bg-primary/10 text-primary"
-                      : "text-muted-foreground hover:bg-muted hover:text-foreground"
-                  }`}
+                      ? "bg-primary/10 text-primary font-semibold"
+                      : "text-muted-foreground hover:bg-muted/50 hover:text-foreground"
+                  )}
                 >
                   <Icon className="w-4 h-4" />
                   {link.label}
@@ -90,64 +88,73 @@ export function CustomerNav({ user }: CustomerNavProps) {
           </nav>
         </div>
 
-        <div className="flex items-center gap-3">
+        {/* Right side Profile & Mobile Toggle */}
+        <div className="flex items-center gap-2">
+          {/* User Menu */}
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
-              <Button variant="ghost" className="relative h-10 w-10 rounded-full">
-                <Avatar className="h-9 w-9 border border-border">
-                  <AvatarImage src={user?.image || ""} alt={user?.name || "Customer"} />
-                  <AvatarFallback className="bg-primary/10 text-primary font-semibold">
-                    {getInitials(user?.name, user?.email)}
+              <Button
+                variant="ghost"
+                className="relative h-9 w-9 rounded-full ring-1 ring-border/60 hover:ring-primary/40 transition-all p-0"
+              >
+                <Avatar className="h-9 w-9">
+                  <AvatarImage src={user.image || ""} alt={user.name || "Customer"} />
+                  <AvatarFallback className="bg-primary/10 text-primary font-semibold text-xs">
+                    {initials}
                   </AvatarFallback>
                 </Avatar>
               </Button>
             </DropdownMenuTrigger>
-            <DropdownMenuContent className="w-56" align="end">
+            <DropdownMenuContent align="end" className="w-56 mt-1.5">
               <DropdownMenuLabel className="font-normal">
                 <div className="flex flex-col space-y-1">
-                  <p className="text-sm font-semibold leading-none">{user?.name || "Customer"}</p>
-                  <p className="text-xs leading-none text-muted-foreground">{user?.email}</p>
+                  <p className="text-sm font-semibold leading-none text-foreground">{user.name || "Customer"}</p>
+                  <p className="text-xs leading-none text-muted-foreground truncate">{user.email}</p>
                 </div>
               </DropdownMenuLabel>
               <DropdownMenuSeparator />
-              <DropdownMenuItem asChild>
-                <Link href="/customer" className="flex items-center gap-2 cursor-pointer">
-                  <CalendarDays className="w-4 h-4 text-muted-foreground" />
-                  <span>My Bookings</span>
+              <DropdownMenuItem asChild className="cursor-pointer">
+                <Link href="/customer/profile" className="flex items-center gap-2">
+                  <IconUser className="w-4 h-4 text-muted-foreground" />
+                  <span>Profile & Security</span>
                 </Link>
               </DropdownMenuItem>
-              <DropdownMenuItem asChild>
-                <Link href="/customer/profile" className="flex items-center gap-2 cursor-pointer">
-                  <ShieldCheck className="w-4 h-4 text-muted-foreground" />
-                  <span>Profile & Security</span>
+              <DropdownMenuItem asChild className="cursor-pointer">
+                <Link href="/customer" className="flex items-center gap-2">
+                  <IconCalendar className="w-4 h-4 text-muted-foreground" />
+                  <span>My Appointments</span>
                 </Link>
               </DropdownMenuItem>
               <DropdownMenuSeparator />
               <DropdownMenuItem
                 onClick={() => signOut({ callbackUrl: "/login" })}
-                className="text-red-600 dark:text-red-400 focus:text-red-600 cursor-pointer flex items-center gap-2"
+                className="text-destructive focus:text-destructive cursor-pointer flex items-center gap-2"
               >
-                <LogOut className="w-4 h-4" />
+                <IconLogout className="w-4 h-4" />
                 <span>Log out</span>
               </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
 
+          {/* Mobile Menu Drawer */}
           <div className="md:hidden">
-            <Sheet>
+            <Sheet open={mobileOpen} onOpenChange={setMobileOpen}>
               <SheetTrigger asChild>
                 <Button variant="ghost" size="icon" className="h-9 w-9">
-                  <Menu className="w-5 h-5" />
+                  <IconMenu className="w-5 h-5" />
+                  <span className="sr-only">Toggle navigation menu</span>
                 </Button>
               </SheetTrigger>
-              <SheetContent side="left" className="w-64">
-                <SheetHeader className="mb-6">
+              <SheetContent side="left" className="w-72 p-0">
+                <SheetHeader className="p-4 border-b border-border/60">
                   <SheetTitle className="flex items-center gap-2">
-                    <Sparkles className="w-5 h-5 text-primary" />
-                    <span>Customer Portal</span>
+                    <div className="w-8 h-8 rounded-lg bg-primary flex items-center justify-center text-primary-foreground">
+                      <IconCalendarEvent className="w-4 h-4" />
+                    </div>
+                    <span>BookingGo</span>
                   </SheetTitle>
                 </SheetHeader>
-                <div className="flex flex-col space-y-2">
+                <div className="px-3 py-4 space-y-1">
                   {navLinks.map((link) => {
                     const Icon = link.icon;
                     const isActive = pathname === link.href;
@@ -155,26 +162,19 @@ export function CustomerNav({ user }: CustomerNavProps) {
                       <Link
                         key={link.href}
                         href={link.href}
-                        className={`flex items-center gap-3 px-3 py-2 rounded-md text-sm font-medium transition-colors ${
+                        onClick={() => setMobileOpen(false)}
+                        className={cn(
+                          "flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors",
                           isActive
-                            ? "bg-primary/10 text-primary"
-                            : "text-muted-foreground hover:bg-muted hover:text-foreground"
-                        }`}
+                            ? "bg-primary/10 text-primary font-semibold"
+                            : "text-muted-foreground hover:bg-muted/50 hover:text-foreground"
+                        )}
                       >
                         <Icon className="w-4 h-4" />
                         {link.label}
                       </Link>
                     );
                   })}
-                  <hr className="my-2 border-border" />
-                  <Button
-                    variant="ghost"
-                    onClick={() => signOut({ callbackUrl: "/login" })}
-                    className="justify-start text-red-600 px-3 hover:bg-red-50 hover:text-red-600 w-full"
-                  >
-                    <LogOut className="w-4 h-4 mr-3" />
-                    Log out
-                  </Button>
                 </div>
               </SheetContent>
             </Sheet>
