@@ -23,6 +23,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { AnimatedThemeToggler } from "@/components/ui/animated-theme-toggler";
+import { NotificationBell } from "@/components/dashboard/notification-bell";
 
 interface CompanyHeaderProps {
   user?: {
@@ -84,6 +85,8 @@ export function CompanyHeader({ user, businessName, businessSlug }: CompanyHeade
             </DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>
+
+        <NotificationBell />
 
         <AnimatedThemeToggler
           theme={theme === "dark" ? "dark" : "light"}
