@@ -18,3 +18,4 @@ export * from './BankTransferPayment';
 export * from './Testimonial';
 export * from './ContactUs';
 export * from './Subscribe';
+export * from './Notification';
