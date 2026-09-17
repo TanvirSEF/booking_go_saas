@@ -8,6 +8,7 @@ import { Category } from '../models/Category';
 import { Service } from '../models/Service';
 import { Staff } from '../models/Staff';
 import { CustomStatus } from '../models/CustomStatus';
+import { Customer } from '../models/Customer';
 import { Appointment } from '../models/Appointment';
 import { AppointmentPayment } from '../models/AppointmentPayment';
 
@@ -325,19 +326,68 @@ async function seed() {
     }
   }
 
-  // 10. Seed Sample Appointment (#APP0001 - John Doe)
-  console.log('📅 Seeding Sample Appointment (#APP0001)...');
+  // 10. Seed Customer User & Profile
+  console.log('👤 Seeding Customer User & Record...');
+  let customerUser = await User.findOne({ email: 'customer@example.com' });
+  if (!customerUser) {
+    customerUser = await User.create({
+      name: 'Alex Rivera',
+      email: 'customer@example.com',
+      password: defaultPassword,
+      role: 'customer',
+      isActive: true,
+      emailVerifiedAt: new Date(),
+    });
+  } else {
+    customerUser.name = 'Alex Rivera';
+    customerUser.password = defaultPassword;
+    customerUser.role = 'customer';
+    customerUser.isActive = true;
+    await customerUser.save();
+  }
+
+  let customer = await Customer.findOne({ email: 'customer@example.com' });
+  if (!customer) {
+    customer = await Customer.create({
+      companyId: companyUser._id,
+      businessId: business._id,
+      userId: customerUser._id,
+      name: 'Alex Rivera',
+      email: 'customer@example.com',
+      contact: '+1 555-0188',
+      gender: 'male',
+      dob: '1992-05-14',
+      description: 'VIP regular customer.',
+    });
+  } else {
+    customer.companyId = companyUser._id;
+    customer.businessId = business._id;
+    customer.userId = customerUser._id;
+    customer.name = 'Alex Rivera';
+    customer.contact = '+1 555-0188';
+    await customer.save();
+  }
+
+  // 11. Seed Sample Appointments
+  console.log('📅 Seeding Sample Appointments (#APP0001 & #APP0002)...');
   let sampleAppointment = await Appointment.findOne({ appointmentNumber: '#APP0001' });
-  const todayStr = new Date().toISOString().split('T')[0];
+  const today = new Date();
+  const todayStr = today.toISOString().split('T')[0];
+
+  const tomorrow = new Date(today);
+  tomorrow.setDate(tomorrow.getDate() + 1);
+  const tomorrowStr = tomorrow.toISOString().split('T')[0];
+
   if (!sampleAppointment) {
     sampleAppointment = await Appointment.create({
       appointmentNumber: '#APP0001',
       companyId: companyUser._id,
       businessId: business._id,
-      customerType: 'guest-user',
-      name: 'John Doe',
-      email: 'johndoe@example.com',
-      contact: '+1 555-0144',
+      customerId: customer._id,
+      customerType: 'existing-user',
+      name: 'Alex Rivera',
+      email: 'customer@example.com',
+      contact: '+1 555-0188',
       locationId: location._id,
       serviceId: haircutService._id,
       staffId: staff._id,
@@ -345,7 +395,7 @@ async function seed() {
       time: '10:00 - 10:30',
       durationMinutes: 30,
       price: 45,
-      notes: 'First time client, prefers shorter on sides.',
+      notes: 'Prefers shorter on sides, regular customer.',
       paymentType: 'Manually',
       paymentStatus: 'paid',
       appointmentStatus: 'Confirmed',
@@ -365,6 +415,60 @@ async function seed() {
       paymentDate: new Date(),
       status: 'completed',
     });
+  } else {
+    sampleAppointment.customerId = customer._id;
+    sampleAppointment.customerType = 'existing-user';
+    sampleAppointment.email = 'customer@example.com';
+    sampleAppointment.name = 'Alex Rivera';
+    sampleAppointment.contact = '+1 555-0188';
+    await sampleAppointment.save();
+  }
+
+  // Seed an upcoming appointment for the customer to test customer dashboard tabs
+  let upcomingAppointment = await Appointment.findOne({ appointmentNumber: '#APP0002' });
+  if (!upcomingAppointment) {
+    upcomingAppointment = await Appointment.create({
+      appointmentNumber: '#APP0002',
+      companyId: companyUser._id,
+      businessId: business._id,
+      customerId: customer._id,
+      customerType: 'existing-user',
+      name: 'Alex Rivera',
+      email: 'customer@example.com',
+      contact: '+1 555-0188',
+      locationId: location._id,
+      serviceId: keratinService._id,
+      staffId: staff._id,
+      date: tomorrowStr,
+      time: '14:00 - 15:00',
+      durationMinutes: 60,
+      price: 120,
+      notes: 'Keratin treatment touchup.',
+      paymentType: 'Manually',
+      paymentStatus: 'paid',
+      appointmentStatus: 'Confirmed',
+      statusColor: '#10b981',
+    });
+
+    await AppointmentPayment.create({
+      appointmentId: upcomingAppointment._id,
+      companyId: companyUser._id,
+      businessId: business._id,
+      paymentType: 'Manually',
+      amount: 120,
+      discountAmount: 0,
+      couponAmount: 0,
+      taxAmount: 0,
+      finalAmount: 120,
+      paymentDate: new Date(),
+      status: 'completed',
+    });
+  } else {
+    upcomingAppointment.customerId = customer._id;
+    upcomingAppointment.customerType = 'existing-user';
+    upcomingAppointment.email = 'customer@example.com';
+    upcomingAppointment.name = 'Alex Rivera';
+    await upcomingAppointment.save();
   }
 
   console.log('----------------------------------------------------');
@@ -374,6 +478,7 @@ async function seed() {
   console.log('   - Super Admin : superadmin@example.com / 1234');
   console.log('   - Company     : company@example.com    / 1234');
   console.log('   - Staff       : staff@example.com      / 1234');
+  console.log('   - Customer    : customer@example.com   / 1234');
   console.log('🏬 Seeded Business:');
   console.log(`   - Name : ${business.name}`);
   console.log(`   - Slug : ${business.slug}`);
@@ -383,6 +488,8 @@ async function seed() {
   console.log(`   - Keratin ($120, 60m): ${keratinService._id}`);
   console.log('📍 Seeded Location:');
   console.log(`   - ${location.name} : ${location._id}`);
+  console.log('👤 Seeded Customer:');
+  console.log(`   - ${customer.name} (${customer.email}) : ${customer._id}`);
   console.log('----------------------------------------------------');
 
   await mongoose.disconnect();
