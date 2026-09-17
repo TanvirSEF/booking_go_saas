@@ -57,7 +57,7 @@ export function LoginForm() {
   }
 
   return (
-    <div className="flex flex-col">
+    <div className="flex flex-col" suppressHydrationWarning>
       <form onSubmit={handleSubmit} className="flex flex-col gap-4">
         {error && (
           <div className="flex items-center gap-2 rounded-lg border border-destructive/20 bg-destructive/10 p-3 text-xs text-destructive">

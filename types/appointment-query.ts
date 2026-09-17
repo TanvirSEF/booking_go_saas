@@ -10,10 +10,16 @@ export interface CalendarEvent {
     appointmentNumber: string;
     customerName: string;
     customerEmail: string;
+    customerType?: string;
     customerContact: string;
     serviceName: string;
+    durationMinutes?: number;
+    time?: string;
+    date?: string;
+    staffId?: string;
     staffName: string;
     staffColor: string;
+    locationId?: string;
     locationName: string;
     status: string;
     statusColor: string;
