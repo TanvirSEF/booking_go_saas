@@ -9,6 +9,7 @@ import type {
   WizardCatalog,
   TimeSlotSelection,
   CustomerDetails,
+  AppliedCoupon,
 } from '@/types/wizard';
 
 const initialCustomerState: CustomerDetails = {
@@ -33,6 +34,7 @@ const initialWizardState: WizardState = {
   selectedTimeSlot: null,
   customer: initialCustomerState,
   paymentType: 'Manually',
+  appliedCoupon: null,
 };
 
 const WizardContext = createContext<WizardContextType | null>(null);
@@ -45,7 +47,6 @@ export interface WizardProviderProps {
 
 export function WizardProvider({ business, catalog, children }: WizardProviderProps) {
   const [state, setState] = useState<WizardState>(() => {
-    // Pre-select first location and category if available
     const defaultLocationId = catalog.locations[0]?.id || '';
     const defaultCategoryId = catalog.categories[0]?.id || '';
     return {
@@ -79,7 +80,6 @@ export function WizardProvider({ business, catalog, children }: WizardProviderPr
     setState((prev) => ({
       ...prev,
       selectedLocationId: locationId,
-      // Reset downstream selections that depend on location
       selectedStaffId: '',
       selectedTimeSlot: null,
     }));
@@ -89,7 +89,6 @@ export function WizardProvider({ business, catalog, children }: WizardProviderPr
     setState((prev) => ({
       ...prev,
       selectedCategoryId: categoryId,
-      // Reset downstream selections that depend on category
       selectedServiceId: '',
       selectedStaffId: '',
       selectedTimeSlot: null,
@@ -102,6 +101,7 @@ export function WizardProvider({ business, catalog, children }: WizardProviderPr
       selectedServiceId: serviceId,
       selectedStaffId: '',
       selectedTimeSlot: null,
+      appliedCoupon: null,
     }));
   }, []);
 
@@ -145,6 +145,13 @@ export function WizardProvider({ business, catalog, children }: WizardProviderPr
     }));
   }, []);
 
+  const setAppliedCoupon = useCallback((appliedCoupon: AppliedCoupon | null) => {
+    setState((prev) => ({
+      ...prev,
+      appliedCoupon,
+    }));
+  }, []);
+
   const resetWizard = useCallback(() => {
     setState({
       ...initialWizardState,
@@ -153,28 +160,23 @@ export function WizardProvider({ business, catalog, children }: WizardProviderPr
     });
   }, [catalog.locations, catalog.categories]);
 
-  // Step guard validation logic
   const canGoNext = useMemo(() => {
     switch (state.currentStep) {
       case 1:
-        // Location and Category must be selected (if catalog has them)
         if (catalog.locations.length > 0 && !state.selectedLocationId) return false;
         if (catalog.categories.length > 0 && !state.selectedCategoryId) return false;
         return Boolean(state.selectedLocationId);
 
       case 2:
-        // Service must be selected
         return Boolean(state.selectedServiceId);
 
       case 3:
-        // Date and Time slot must be chosen
         return Boolean(state.selectedDate && state.selectedTimeSlot?.start);
 
       case 4: {
-        // Customer fields validation
         const { name, email, contact, customerType, password } = state.customer;
         const hasValidName = name.trim().length >= 2;
-        const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+        const emailRegex = /^[^s@]+@[^s@]+.[^s@]+$/;
         const hasValidEmail = emailRegex.test(email.trim());
         const hasValidContact = contact.trim().length >= 5;
 
@@ -211,6 +213,7 @@ export function WizardProvider({ business, catalog, children }: WizardProviderPr
       updateTimeSlot,
       updateCustomer,
       updatePaymentType,
+      setAppliedCoupon,
       setIsSubmitting,
       resetWizard,
     }),
@@ -231,6 +234,7 @@ export function WizardProvider({ business, catalog, children }: WizardProviderPr
       updateTimeSlot,
       updateCustomer,
       updatePaymentType,
+      setAppliedCoupon,
       resetWizard,
     ]
   );

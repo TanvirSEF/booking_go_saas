@@ -1,31 +1,52 @@
 'use client';
 
-import React, { useState, useTransition, useMemo } from 'react';
-import {
-  IconChecklist,
-  IconMapPin,
-  IconCut,
-  IconUser,
-  IconCalendar,
-  IconClock,
-  IconCreditCard,
-  IconCash,
-  IconAlertTriangle,
-  IconShieldCheck,
-  IconArrowLeft,
-} from '@tabler/icons-react';
-import { toast } from 'sonner';
-import { useWizard } from '../wizard-context';
-import { createAppointment } from '@/actions/appointment';
-import { Badge } from '@/components/ui/badge';
+import React, { useState, useTransition } from 'react';
+import { useWizard } from '@/components/wizard/wizard-context';
 import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
 import {
   BookingConfirmationDialog,
   type ConfirmedBookingDetails,
-} from '../booking-confirmation-dialog';
+} from '@/components/wizard/booking-confirmation-dialog';
+import { BankTransferUploader } from '@/components/wizard/bank-transfer-uploader';
+import { createAppointment } from '@/actions/appointment';
+import {
+  validateAppointmentCouponAction,
+  createAppointmentStripeSessionAction,
+  submitBankTransferReceiptAction,
+} from '@/actions/appointment-payment';
+import {
+  IconArrowLeft,
+  IconCalendar,
+  IconClock,
+  IconUser,
+  IconMapPin,
+  IconShieldCheck,
+  IconCreditCard,
+  IconCash,
+  IconBuildingBank,
+  IconSparkles,
+  IconTag,
+  IconX,
+  IconLoader2,
+  IconCheck,
+  IconCopy,
+} from '@tabler/icons-react';
+import { toast } from 'sonner';
 
 export function Step5ReviewConfirm() {
-  const { state, business, catalog, setStep, resetWizard, setIsSubmitting } = useWizard();
+  const {
+    business,
+    catalog,
+    state,
+    setStep,
+    updatePaymentType,
+    setAppliedCoupon,
+    resetWizard,
+  } = useWizard();
+
   const {
     selectedLocationId,
     selectedServiceId,
@@ -34,87 +55,113 @@ export function Step5ReviewConfirm() {
     selectedTimeSlot,
     customer,
     paymentType,
+    appliedCoupon,
   } = state;
 
   const [isPending, startTransition] = useTransition();
-  const [submissionError, setSubmissionError] = useState<string | null>(null);
-  const [confirmationDetails, setConfirmationDetails] = useState<ConfirmedBookingDetails | null>(null);
+  const [isCouponPending, setIsCouponPending] = useState(false);
+  const [couponInput, setCouponInput] = useState('');
+  const [couponError, setCouponError] = useState<string | null>(null);
+
+  // Bank Transfer states
+  const [receiptUrl, setReceiptUrl] = useState<string>('');
+  const [transactionRef, setTransactionRef] = useState<string>('');
+  const [bankNameInput, setBankNameInput] = useState<string>('');
+
   const [isConfirmationOpen, setIsConfirmationOpen] = useState(false);
+  const [confirmationDetails, setConfirmationDetails] = useState<ConfirmedBookingDetails | null>(null);
 
-  // Resolved entities
-  const selectedLocation = useMemo(() => {
-    return catalog.locations.find((l) => l.id === selectedLocationId);
-  }, [catalog.locations, selectedLocationId]);
+  const [submitError, setSubmitError] = useState<string | null>(null);
 
-  const selectedService = useMemo(() => {
-    return catalog.services.find((s) => s.id === selectedServiceId);
-  }, [catalog.services, selectedServiceId]);
+  // Resolved metadata
+  const selectedLocation = catalog.locations.find((loc) => loc.id === selectedLocationId);
+  const selectedService = catalog.services.find((srv) => srv.id === selectedServiceId);
+  const selectedStaff = catalog.staff.find((st) => st.id === selectedStaffId);
 
-  const selectedStaff = useMemo(() => {
-    if (!selectedStaffId) return null;
-    return catalog.staff.find((stf) => stf.id === selectedStaffId);
-  }, [catalog.staff, selectedStaffId]);
+  const originalPrice = selectedService?.price || 0;
+  const discountAmount = appliedCoupon ? appliedCoupon.discountAmount : 0;
+  const finalPayable = appliedCoupon ? appliedCoupon.finalPrice : originalPrice;
 
-  // Formatted date string
-  const formattedDate = useMemo(() => {
-    if (!selectedDate) return '';
-    try {
-      const parts = selectedDate.split('-');
-      if (parts.length === 3) {
-        const d = new Date(parseInt(parts[0], 10), parseInt(parts[1], 10) - 1, parseInt(parts[2], 10));
-        return d.toLocaleDateString('en-US', {
+  // Format the date
+  const formattedDate = (() => {
+    if (!selectedDate) return 'Not selected';
+    const parts = selectedDate.split('-');
+    if (parts.length === 3) {
+      const day = parseInt(parts[0], 10);
+      const monthIndex = parseInt(parts[1], 10) - 1;
+      const year = parseInt(parts[2], 10);
+      const dateObj = new Date(year, monthIndex, day);
+      if (!isNaN(dateObj.getTime())) {
+        return dateObj.toLocaleDateString('en-US', {
           weekday: 'short',
           month: 'short',
           day: 'numeric',
           year: 'numeric',
         });
       }
-    } catch {
-      // Fallback
     }
     return selectedDate;
-  }, [selectedDate]);
+  })();
 
-  // Auto-resolve staff if "Any Specialist" was chosen
-  const effectiveStaffId = useMemo(() => {
-    if (selectedStaffId) return selectedStaffId;
-    // Find first staff offering this service and at this location
-    const matched = catalog.staff.find((stf) => {
-      const matchLoc =
-        !selectedLocationId ||
-        !stf.locationIds ||
-        stf.locationIds.length === 0 ||
-        stf.locationIds.includes(selectedLocationId);
-      const matchSrv =
-        !selectedServiceId ||
-        !stf.serviceIds ||
-        stf.serviceIds.length === 0 ||
-        stf.serviceIds.includes(selectedServiceId);
-      return matchLoc && matchSrv;
-    });
-    return matched?.id || catalog.staff[0]?.id || '';
-  }, [catalog.staff, selectedStaffId, selectedLocationId, selectedServiceId]);
+  const handleApplyCoupon = async (e?: React.FormEvent) => {
+    if (e) e.preventDefault();
+    setCouponError(null);
 
-  const handleConfirmBooking = () => {
-    if (!selectedService || !selectedLocation || !selectedDate || !selectedTimeSlot) {
-      toast.error('Missing required booking details. Please review your choices.');
+    if (!couponInput.trim()) {
+      setCouponError('Please enter a coupon code.');
       return;
     }
 
-    setSubmissionError(null);
-    setIsSubmitting(true);
+    try {
+      setIsCouponPending(true);
+      const res = await validateAppointmentCouponAction({
+        couponCode: couponInput.trim(),
+        originalPrice,
+      });
+
+      if (!res.valid || !res.coupon) {
+        setCouponError(res.error || 'Invalid promo code.');
+        setAppliedCoupon(null);
+      } else {
+        setAppliedCoupon(res.coupon);
+        setCouponInput('');
+        setCouponError(null);
+      }
+    } catch {
+      setCouponError('Failed to validate promo code.');
+    } finally {
+      setIsCouponPending(false);
+    }
+  };
+
+  const handleRemoveCoupon = () => {
+    setAppliedCoupon(null);
+    setCouponError(null);
+    setCouponInput('');
+  };
+
+  const handleCopyText = (text: string, label: string) => {
+    navigator.clipboard.writeText(text);
+    toast.success(`${label} copied to clipboard!`);
+  };
+
+  const handleConfirmBooking = () => {
+    if (!selectedService || !selectedLocation || !selectedDate || !selectedTimeSlot) {
+      setSubmitError('Missing required booking details. Please go back and complete each step.');
+      return;
+    }
+
+    setSubmitError(null);
 
     startTransition(async () => {
       try {
-        const slotTime = `${selectedTimeSlot.start} - ${selectedTimeSlot.end}`;
-
-        const result = await createAppointment({
+        const response = await createAppointment({
           businessId: business.id,
           serviceId: selectedService.id,
-          staffId: effectiveStaffId,
+          staffId: selectedStaffId || '',
           locationId: selectedLocation.id,
           date: selectedDate,
-          time: slotTime,
+          time: selectedTimeSlot.start,
           customerType: customer.customerType,
           name: customer.name,
           email: customer.email,
@@ -123,122 +170,112 @@ export function Step5ReviewConfirm() {
           gender: customer.gender,
           dob: customer.dob,
           notes: customer.notes,
-          paymentType: paymentType || 'Manually',
-          customFields: customer.customFields,
+          paymentType: paymentType,
         });
 
-        if (result.success && result.appointmentNumber) {
-          toast.success(result.message || 'Appointment booked successfully!');
+        if (response.success && response.appointmentId) {
+          // Stripe checkout branch
+          if (paymentType === 'Stripe') {
+            const stripeRes = await createAppointmentStripeSessionAction({
+              appointmentId: response.appointmentId,
+              couponCode: appliedCoupon?.code,
+            });
+
+            if (stripeRes.success && stripeRes.url) {
+              window.location.href = stripeRes.url;
+              return;
+            } else {
+              setSubmitError(stripeRes.error || 'Failed to initialize Stripe checkout.');
+              return;
+            }
+          }
+
+          // Bank Transfer branch
+          if (paymentType === 'BankTransfer') {
+            if (receiptUrl || transactionRef) {
+              await submitBankTransferReceiptAction({
+                appointmentId: response.appointmentId,
+                receiptUrl,
+                bankName: bankNameInput,
+                transactionReference: transactionRef,
+              });
+            }
+          }
+
           setConfirmationDetails({
-            appointmentNumber: result.appointmentNumber,
-            businessSlug: business.slug,
-            businessName: business.name,
+            appointmentNumber: response.appointmentId,
             serviceName: selectedService.name,
-            staffName: selectedStaff ? selectedStaff.name : 'First Available Specialist',
+            staffName: selectedStaff ? selectedStaff.name : 'Any Specialist',
             locationName: selectedLocation.name,
-            date: formattedDate,
-            time: `${selectedTimeSlot.start} - ${selectedTimeSlot.end}`,
+            date: selectedDate,
+            time: selectedTimeSlot.start,
             customerName: customer.name,
             customerEmail: customer.email,
-            price: selectedService.price || 0,
+            price: finalPayable,
             currencySymbol: business.currencySymbol || '$',
+            businessName: business.name,
+            businessSlug: business.slug,
           });
           setIsConfirmationOpen(true);
         } else {
-          const errorMsg =
-            result.error ||
-            'Slot is fully booked for this staff member. Please select another slot.';
-          setSubmissionError(errorMsg);
-          toast.error(errorMsg);
+          setSubmitError(response.error || 'Failed to place appointment. Please try again.');
         }
-      } catch {
-        const fallbackError = 'An unexpected server error occurred. Please try again.';
-        setSubmissionError(fallbackError);
-        toast.error(fallbackError);
-      } finally {
-        setIsSubmitting(false);
+      } catch (err: unknown) {
+        setSubmitError(err instanceof Error ? err.message : 'A fatal error occurred during booking.');
       }
     });
   };
 
   return (
-    <div className="space-y-6 animate-in fade-in-50 duration-300">
-      {/* Step Header */}
-      <div>
+    <div className="space-y-6">
+      <div className="space-y-1">
         <h2 className="text-xl font-bold tracking-tight text-foreground flex items-center gap-2">
-          <IconChecklist className="text-primary" size={22} />
-          <span>Review & Confirm Booking</span>
+          <span>Review & Confirm</span>
+          <IconSparkles size={20} className="text-primary" />
         </h2>
-        <p className="text-sm text-muted-foreground mt-1">
-          Please verify your appointment details before placing your confirmation.
+        <p className="text-xs text-muted-foreground">
+          Double-check your appointment itinerary and payment details before finalizing.
         </p>
       </div>
 
-      {/* Submission Error Alert */}
-      {submissionError && (
-        <div className="p-4 rounded-xl border border-destructive/30 bg-destructive/10 text-destructive text-xs flex items-start justify-between gap-3 animate-in shake duration-300">
-          <div className="flex items-start gap-2.5">
-            <IconAlertTriangle size={18} className="shrink-0 mt-0.5" />
-            <div>
-              <p className="font-semibold text-sm">Booking Slot Conflict</p>
-              <p className="mt-0.5 leading-relaxed">{submissionError}</p>
-            </div>
-          </div>
-          <Button
-            type="button"
-            variant="outline"
-            size="sm"
-            onClick={() => setStep(3)}
-            className="text-xs shrink-0 border-destructive/40 hover:bg-destructive/15 cursor-pointer font-medium"
-          >
-            <IconArrowLeft size={13} className="mr-1" />
-            <span>Pick Another Slot</span>
-          </Button>
+      {submitError && (
+        <div className="p-3.5 rounded-xl border border-destructive/30 bg-destructive/10 text-destructive text-xs">
+          <p className="font-semibold">Unable to complete booking</p>
+          <p className="mt-0.5">{submitError}</p>
         </div>
       )}
 
-      {/* Main Review Summary Cards */}
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
-        {/* Left Column: Service & Booking Summary Card (7 cols) */}
-        <div className="lg:col-span-7 bg-card rounded-2xl border p-5 sm:p-6 shadow-xs space-y-5">
-          <div className="flex items-center justify-between border-b pb-4">
-            <div className="flex items-center gap-2.5">
-              <div className="w-9 h-9 rounded-xl bg-primary/10 text-primary flex items-center justify-center border border-primary/20">
-                <IconCut size={18} />
-              </div>
-              <div>
-                <h3 className="font-bold text-sm text-foreground">
-                  {selectedService?.name || 'Selected Service'}
-                </h3>
-                <p className="text-xs text-muted-foreground">
-                  {selectedLocation?.name || 'Main Branch'}
-                </p>
-              </div>
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
+        {/* Left Column: Itinerary Details (7 cols) */}
+        <div className="lg:col-span-7 space-y-4 bg-card rounded-2xl border p-5 shadow-xs">
+          <div className="flex items-center justify-between pb-3 border-b">
+            <div>
+              <span className="text-[11px] text-muted-foreground uppercase font-bold tracking-wider block">
+                Selected Service
+              </span>
+              <h3 className="text-lg font-bold text-foreground mt-0.5">
+                {selectedService?.name || 'Service not found'}
+              </h3>
             </div>
-
             <div className="text-right">
-              {selectedService?.isFree ? (
-                <Badge variant="secondary" className="bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 font-bold text-xs">
-                  Free
-                </Badge>
-              ) : (
-                <span className="text-base font-bold text-foreground">
-                  {business.currencySymbol || '$'}
-                  {selectedService?.price.toFixed(2)}
-                </span>
-              )}
+              <span className="text-[11px] text-muted-foreground block">Price</span>
+              <span className="text-lg font-extrabold text-foreground">
+                {business.currencySymbol || '$'}
+                {selectedService?.price.toFixed(2)}
+              </span>
             </div>
           </div>
 
-          {/* Key Appointment Details Grid */}
+          {/* Key Details Grid */}
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
-            {/* Location */}
             <div className="p-3 rounded-xl bg-muted/30 border border-border/50 space-y-1">
               <span className="text-[11px] text-muted-foreground flex items-center gap-1 font-semibold uppercase tracking-wider">
                 <IconMapPin size={13} className="text-primary" />
                 <span>Location</span>
               </span>
-              <p className="font-semibold text-foreground">{selectedLocation?.name}</p>
+              <p className="font-semibold text-foreground">
+                {selectedLocation?.name || 'Main Office'}
+              </p>
               {selectedLocation?.address && (
                 <p className="text-[11px] text-muted-foreground line-clamp-1">
                   {selectedLocation.address}
@@ -246,7 +283,6 @@ export function Step5ReviewConfirm() {
               )}
             </div>
 
-            {/* Specialist */}
             <div className="p-3 rounded-xl bg-muted/30 border border-border/50 space-y-1">
               <span className="text-[11px] text-muted-foreground flex items-center gap-1 font-semibold uppercase tracking-wider">
                 <IconUser size={13} className="text-primary" />
@@ -258,7 +294,6 @@ export function Step5ReviewConfirm() {
               <p className="text-[11px] text-muted-foreground">Assigned professional</p>
             </div>
 
-            {/* Date */}
             <div className="p-3 rounded-xl bg-muted/30 border border-border/50 space-y-1">
               <span className="text-[11px] text-muted-foreground flex items-center gap-1 font-semibold uppercase tracking-wider">
                 <IconCalendar size={13} className="text-primary" />
@@ -268,7 +303,6 @@ export function Step5ReviewConfirm() {
               <p className="text-[11px] text-muted-foreground font-mono">{selectedDate}</p>
             </div>
 
-            {/* Time Slot & Duration */}
             <div className="p-3 rounded-xl bg-muted/30 border border-border/50 space-y-1">
               <span className="text-[11px] text-muted-foreground flex items-center gap-1 font-semibold uppercase tracking-wider">
                 <IconClock size={13} className="text-primary" />
@@ -283,7 +317,6 @@ export function Step5ReviewConfirm() {
             </div>
           </div>
 
-          {/* Customer Details Summary */}
           <div className="pt-3 border-t text-xs space-y-2">
             <span className="text-[11px] text-muted-foreground font-semibold uppercase tracking-wider block">
               Customer Information
@@ -317,33 +350,261 @@ export function Step5ReviewConfirm() {
           </div>
         </div>
 
-        {/* Right Column: Payment Method & Terms (5 cols) */}
+        {/* Right Column: Payment Method, Coupons & Total (5 cols) */}
         <div className="lg:col-span-5 space-y-4">
           {/* Payment Method Selector */}
           <div className="bg-card rounded-2xl border p-5 shadow-xs space-y-3">
-            <label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground block flex items-center gap-1.5">
+            <label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground flex items-center gap-1.5">
               <IconCreditCard size={14} className="text-primary" />
               <span>Payment Method</span>
             </label>
 
-            <div className="p-3.5 rounded-xl border border-primary/30 bg-primary/5 flex items-center justify-between">
-              <div className="flex items-center gap-2.5">
-                <div className="w-8 h-8 rounded-lg bg-primary/10 text-primary flex items-center justify-center">
-                  <IconCash size={18} />
+            <div className="space-y-2">
+              {/* Option A: Cash / Manual */}
+              <button
+                type="button"
+                onClick={() => updatePaymentType('Manually')}
+                className={`w-full p-3 rounded-xl border text-left flex items-center justify-between transition-all cursor-pointer ${
+                  paymentType === 'Manually'
+                    ? 'border-primary bg-primary/5 ring-1 ring-primary'
+                    : 'border-border/60 hover:bg-muted/40'
+                }`}
+              >
+                <div className="flex items-center gap-2.5">
+                  <div className="w-8 h-8 rounded-lg bg-primary/10 text-primary flex items-center justify-center">
+                    <IconCash size={18} />
+                  </div>
+                  <div>
+                    <p className="font-semibold text-xs text-foreground">
+                      Pay at Counter / Cash
+                    </p>
+                    <p className="text-[11px] text-muted-foreground">
+                      Pay upon arrival at the branch
+                    </p>
+                  </div>
                 </div>
-                <div>
-                  <p className="font-semibold text-xs text-foreground">
-                    Pay at Counter / Manually
-                  </p>
-                  <p className="text-[11px] text-muted-foreground">
-                    Pay upon arrival at the salon or branch
-                  </p>
+                {paymentType === 'Manually' && (
+                  <div className="w-5 h-5 rounded-full bg-primary text-primary-foreground flex items-center justify-center">
+                    <IconCheck size={12} />
+                  </div>
+                )}
+              </button>
+
+              {/* Option B: Stripe Card Checkout */}
+              <button
+                type="button"
+                onClick={() => updatePaymentType('Stripe')}
+                className={`w-full p-3 rounded-xl border text-left flex items-center justify-between transition-all cursor-pointer ${
+                  paymentType === 'Stripe'
+                    ? 'border-primary bg-primary/5 ring-1 ring-primary'
+                    : 'border-border/60 hover:bg-muted/40'
+                }`}
+              >
+                <div className="flex items-center gap-2.5">
+                  <div className="w-8 h-8 rounded-lg bg-blue-500/10 text-blue-600 flex items-center justify-center">
+                    <IconCreditCard size={18} />
+                  </div>
+                  <div>
+                    <div className="flex items-center gap-1.5">
+                      <p className="font-semibold text-xs text-foreground">
+                        Credit or Debit Card
+                      </p>
+                      <Badge variant="outline" className="text-[9px] px-1 py-0 h-4 bg-muted/50">
+                        Stripe
+                      </Badge>
+                    </div>
+                    <p className="text-[11px] text-muted-foreground">
+                      Visa, Mastercard, Amex, Apple Pay
+                    </p>
+                  </div>
+                </div>
+                {paymentType === 'Stripe' && (
+                  <div className="w-5 h-5 rounded-full bg-primary text-primary-foreground flex items-center justify-center">
+                    <IconCheck size={12} />
+                  </div>
+                )}
+              </button>
+
+              {/* Option C: Bank Transfer */}
+              <button
+                type="button"
+                onClick={() => updatePaymentType('BankTransfer')}
+                className={`w-full p-3 rounded-xl border text-left flex items-center justify-between transition-all cursor-pointer ${
+                  paymentType === 'BankTransfer'
+                    ? 'border-primary bg-primary/5 ring-1 ring-primary'
+                    : 'border-border/60 hover:bg-muted/40'
+                }`}
+              >
+                <div className="flex items-center gap-2.5">
+                  <div className="w-8 h-8 rounded-lg bg-emerald-500/10 text-emerald-600 flex items-center justify-center">
+                    <IconBuildingBank size={18} />
+                  </div>
+                  <div>
+                    <div className="flex items-center gap-1.5">
+                      <p className="font-semibold text-xs text-foreground">
+                        Bank Transfer / Deposit
+                      </p>
+                      <Badge variant="outline" className="text-[9px] px-1 py-0 h-4 bg-emerald-500/10 text-emerald-700">
+                        Manual Slip
+                      </Badge>
+                    </div>
+                    <p className="text-[11px] text-muted-foreground">
+                      Direct deposit & receipt upload
+                    </p>
+                  </div>
+                </div>
+                {paymentType === 'BankTransfer' && (
+                  <div className="w-5 h-5 rounded-full bg-primary text-primary-foreground flex items-center justify-center">
+                    <IconCheck size={12} />
+                  </div>
+                )}
+              </button>
+            </div>
+
+            {/* Bank Transfer Details Accordion/Card */}
+            {paymentType === 'BankTransfer' && (
+              <div className="pt-3 border-t space-y-3.5 animate-in fade-in slide-in-from-top-2 duration-200">
+                <div className="p-3 rounded-xl bg-muted/40 border text-xs space-y-2">
+                  <div className="flex items-center justify-between pb-1.5 border-b">
+                    <span className="font-semibold text-foreground">Company Bank Account</span>
+                    <Badge variant="outline" className="text-[10px]">Direct Deposit</Badge>
+                  </div>
+                  <div className="space-y-1.5 text-[11px]">
+                    <div className="flex items-center justify-between">
+                      <span className="text-muted-foreground">Bank Name:</span>
+                      <span className="font-semibold text-foreground">Chase / Global Commerce Bank</span>
+                    </div>
+                    <div className="flex items-center justify-between">
+                      <span className="text-muted-foreground">Account Holder:</span>
+                      <span className="font-medium text-foreground">{business.name} Inc.</span>
+                    </div>
+                    <div className="flex items-center justify-between">
+                      <span className="text-muted-foreground">Account Number:</span>
+                      <div className="flex items-center gap-1.5">
+                        <span className="font-mono font-bold text-foreground">9876-5432-1098</span>
+                        <button
+                          type="button"
+                          onClick={() => handleCopyText('987654321098', 'Account Number')}
+                          className="text-muted-foreground hover:text-primary cursor-pointer"
+                        >
+                          <IconCopy size={13} />
+                        </button>
+                      </div>
+                    </div>
+                    <div className="flex items-center justify-between">
+                      <span className="text-muted-foreground">Branch Code:</span>
+                      <span className="font-mono text-foreground">044000037</span>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Receipt Uploader */}
+                <div className="space-y-1.5">
+                  <Label className="text-xs font-medium text-foreground">
+                    Attach Deposit Slip / Receipt
+                  </Label>
+                  <BankTransferUploader
+                    value={receiptUrl}
+                    onChange={setReceiptUrl}
+                    disabled={isPending}
+                  />
+                </div>
+
+                                {/* Bank Name Input */}
+                <div className="space-y-1.5">
+                  <Label htmlFor="bank-name" className="text-xs font-medium text-foreground">
+                    Sender Bank Name (Optional)
+                  </Label>
+                  <Input
+                    id="bank-name"
+                    placeholder="e.g. Chase Bank"
+                    value={bankNameInput}
+                    onChange={(e) => setBankNameInput(e.target.value)}
+                    disabled={isPending}
+                    className="h-9 text-xs"
+                  />
+                </div>
+
+                {/* Optional Transaction Reference */}
+                <div className="space-y-1.5">
+                  <Label htmlFor="tx-ref" className="text-xs font-medium text-foreground">
+                    Transaction / Reference ID (Optional)
+                  </Label>
+                  <Input
+                    id="tx-ref"
+                    placeholder="e.g. TXN987654321"
+                    value={transactionRef}
+                    onChange={(e) => setTransactionRef(e.target.value)}
+                    disabled={isPending}
+                    className="h-9 text-xs font-mono"
+                  />
                 </div>
               </div>
-              <Badge variant="secondary" className="text-[10px] font-semibold">
-                Default
-              </Badge>
-            </div>
+            )}
+          </div>
+
+          {/* Promotional Coupon Code Input Card */}
+          <div className="bg-card rounded-2xl border p-5 shadow-xs space-y-3">
+            <label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground flex items-center gap-1.5">
+              <IconTag size={14} className="text-primary" />
+              <span>Promo / Coupon Code</span>
+            </label>
+
+            {appliedCoupon ? (
+              <div className="p-3 rounded-xl border border-emerald-500/30 bg-emerald-500/10 flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <Badge className="bg-emerald-600 text-white font-mono text-xs">
+                    {appliedCoupon.code}
+                  </Badge>
+                  <span className="text-xs font-medium text-emerald-800 dark:text-emerald-300">
+                    {appliedCoupon.discountType === 'percentage'
+                      ? `${appliedCoupon.discountValue}% OFF`
+                      : `-${business.currencySymbol || '$'}${appliedCoupon.discountValue.toFixed(2)} OFF`}
+                  </span>
+                </div>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  onClick={handleRemoveCoupon}
+                  className="h-7 w-7 p-0 text-muted-foreground hover:text-destructive cursor-pointer"
+                >
+                  <IconX size={15} />
+                </Button>
+              </div>
+            ) : (
+              <form onSubmit={handleApplyCoupon} className="space-y-2">
+                <div className="flex items-center gap-2">
+                  <div className="relative flex-1">
+                    <Input
+                      placeholder="e.g. SUMMER20"
+                      value={couponInput}
+                      onChange={(e) => {
+                        setCouponInput(e.target.value.toUpperCase());
+                        setCouponError(null);
+                      }}
+                      disabled={isCouponPending}
+                      className="h-10 uppercase font-mono text-xs"
+                    />
+                  </div>
+                  <Button
+                    type="submit"
+                    variant="outline"
+                    disabled={isCouponPending || !couponInput.trim()}
+                    className="h-10 px-4 text-xs font-semibold cursor-pointer"
+                  >
+                    {isCouponPending ? (
+                      <IconLoader2 size={14} className="animate-spin" />
+                    ) : (
+                      'Apply'
+                    )}
+                  </Button>
+                </div>
+                {couponError && (
+                  <p className="text-[11px] text-destructive font-medium">{couponError}</p>
+                )}
+              </form>
+            )}
           </div>
 
           {/* Pricing Total Summary */}
@@ -352,18 +613,30 @@ export function Step5ReviewConfirm() {
               <span>Service Subtotal</span>
               <span className="font-medium text-foreground">
                 {business.currencySymbol || '$'}
-                {selectedService?.price.toFixed(2)}
+                {originalPrice.toFixed(2)}
               </span>
             </div>
+
+            {appliedCoupon && (
+              <div className="flex items-center justify-between text-emerald-600 font-medium">
+                <span>Coupon Discount ({appliedCoupon.code})</span>
+                <span>
+                  -{business.currencySymbol || '$'}
+                  {discountAmount.toFixed(2)}
+                </span>
+              </div>
+            )}
+
             <div className="flex items-center justify-between text-muted-foreground">
               <span>Booking Fee</span>
               <span className="text-emerald-600 font-medium">Free</span>
             </div>
+
             <div className="pt-2.5 border-t flex items-center justify-between text-sm font-bold text-foreground">
               <span>Total Payable</span>
-              <span className="text-base text-primary">
+              <span className="text-base text-primary font-bold">
                 {business.currencySymbol || '$'}
-                {selectedService?.price.toFixed(2)}
+                {finalPayable.toFixed(2)}
               </span>
             </div>
           </div>
@@ -372,9 +645,19 @@ export function Step5ReviewConfirm() {
           <div className="p-3.5 rounded-xl border border-emerald-500/20 bg-emerald-500/5 text-xs text-emerald-800 dark:text-emerald-300 flex items-start gap-2.5">
             <IconShieldCheck size={18} className="text-emerald-600 shrink-0 mt-0.5" />
             <div>
-              <p className="font-semibold">Instant Reservation</p>
+              <p className="font-semibold">
+                {paymentType === 'Stripe'
+                  ? 'Secure 256-bit Encrypted Checkout'
+                  : paymentType === 'BankTransfer'
+                  ? 'Manual Verification Required'
+                  : 'Instant Reservation'}
+              </p>
               <p className="text-[11px] text-muted-foreground mt-0.5 leading-relaxed">
-                Your appointment request is transmitted directly into the scheduling calendar.
+                {paymentType === 'Stripe'
+                  ? 'Your payment is processed securely via Stripe. We do not store card details.'
+                  : paymentType === 'BankTransfer'
+                  ? 'Your booking will be confirmed upon bank deposit slip verification by the company.'
+                  : 'Your appointment request is transmitted directly into the scheduling calendar.'}
               </p>
             </div>
           </div>
@@ -397,7 +680,18 @@ export function Step5ReviewConfirm() {
               disabled={isPending}
               className="flex-1 h-11 bg-emerald-600 hover:bg-emerald-700 text-white font-semibold rounded-xl shadow-md transition-all text-sm cursor-pointer"
             >
-              {isPending ? 'Confirming Appointment...' : 'Confirm Appointment'}
+              {isPending ? (
+                <span className="flex items-center justify-center gap-2">
+                  <IconLoader2 size={16} className="animate-spin" />
+                  {paymentType === 'Stripe' ? 'Redirecting to Stripe...' : 'Confirming Appointment...'}
+                </span>
+              ) : paymentType === 'Stripe' ? (
+                'Pay & Confirm Booking'
+              ) : paymentType === 'BankTransfer' ? (
+                'Submit Booking with Slip'
+              ) : (
+                'Confirm Appointment'
+              )}
             </Button>
           </div>
         </div>

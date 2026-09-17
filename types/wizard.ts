@@ -19,6 +19,15 @@ export interface CustomerDetails {
   customFields?: Record<string, unknown>;
 }
 
+export interface AppliedCoupon {
+  code: string;
+  name?: string;
+  discountType: 'percentage' | 'flat';
+  discountValue: number;
+  discountAmount: number;
+  finalPrice: number;
+}
+
 export interface WizardState {
   currentStep: WizardStep;
   selectedLocationId: string;
@@ -29,6 +38,7 @@ export interface WizardState {
   selectedTimeSlot: TimeSlotSelection | null;
   customer: CustomerDetails;
   paymentType: 'Manually' | 'Stripe' | 'PayPal' | 'BankTransfer' | 'Free';
+  appliedCoupon?: AppliedCoupon | null;
 }
 
 export interface ClientBusinessHour {
@@ -61,7 +71,6 @@ export interface ClientBusiness {
   businessHours?: ClientBusinessHour[];
   holidays?: ClientHoliday[];
 }
-
 
 export interface ClientLocation {
   id: string;
@@ -131,6 +140,7 @@ export interface WizardContextType {
   updateTimeSlot: (slot: TimeSlotSelection | null) => void;
   updateCustomer: (info: Partial<CustomerDetails>) => void;
   updatePaymentType: (paymentType: WizardState['paymentType']) => void;
+  setAppliedCoupon: (coupon: AppliedCoupon | null) => void;
   setIsSubmitting: (submitting: boolean) => void;
   resetWizard: () => void;
 }

@@ -8,6 +8,7 @@ import { Service } from '@/models/Service';
 import { Staff } from '@/models/Staff';
 import { CustomField } from '@/models/CustomField';
 import { BookingWizard } from '@/components/wizard/booking-wizard';
+import { verifyAppointmentStripePaymentAction } from '@/actions/appointment-payment';
 import type {
   ClientBusiness,
   ClientLocation,
@@ -17,10 +18,11 @@ import type {
   ClientCustomField,
   WizardCatalog,
 } from '@/types/wizard';
+import type { ConfirmedBookingDetails } from '@/components/wizard/booking-confirmation-dialog';
 
 interface AppointmentPageProps {
   params: Promise<{ slug: string }>;
-  searchParams: Promise<{ layout?: string }>;
+  searchParams: Promise<{ layout?: string; payment?: string; session_id?: string }>;
 }
 
 export async function generateMetadata({
@@ -47,11 +49,17 @@ export default async function AppointmentBookingPage({
   searchParams,
 }: AppointmentPageProps) {
   const { slug } = await params;
-  const { layout } = await searchParams;
+  const { layout, payment, session_id } = await searchParams;
   await connectToDatabase();
 
+  let initialConfirmationDetails: ConfirmedBookingDetails | null = null;
+  if (payment === 'success' && session_id) {
+    const verifyRes = await verifyAppointmentStripePaymentAction(session_id);
+    if (verifyRes.success && verifyRes.details) {
+      initialConfirmationDetails = verifyRes.details;
+    }
+  }
 
-  // 1. Fetch Business by slug
   const businessDoc = await Business.findOne({ slug }).lean();
   if (!businessDoc) {
     notFound();
@@ -59,7 +67,6 @@ export default async function AppointmentBookingPage({
 
   const businessId = businessDoc._id;
 
-  // 2. Fetch all related catalog entities in parallel
   const [locationsDocs, categoriesDocs, servicesDocs, staffDocs, customFieldsDocs] =
     await Promise.all([
       Location.find({ businessId, isActive: true }).sort({ name: 1 }).lean(),
@@ -69,7 +76,6 @@ export default async function AppointmentBookingPage({
       CustomField.find({ businessId }).lean(),
     ]);
 
-  // 3. Serialize to client-safe plain JSON objects
   const business: ClientBusiness = {
     id: String(businessDoc._id),
     name: businessDoc.name,
@@ -149,6 +155,12 @@ export default async function AppointmentBookingPage({
     customFields,
   };
 
-  return <BookingWizard business={business} catalog={catalog} layoutOverride={layout} />;
+  return (
+    <BookingWizard
+      business={business}
+      catalog={catalog}
+      layoutOverride={layout}
+      initialConfirmationDetails={initialConfirmationDetails}
+    />
+  );
 }
-

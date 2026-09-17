@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useEffect, useRef, useMemo } from 'react';
+import React, { useEffect, useRef, useMemo, useState } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { WizardProvider, useWizard } from './wizard-context';
 import { WizardHeader } from './wizard-header';
@@ -10,6 +10,10 @@ import type { ClientBusiness, WizardCatalog } from '@/types/wizard';
 import { Card, CardContent } from '@/components/ui/card';
 import { SplitScreenLayout } from './layouts/split-screen-layout';
 import { getThemeStyles } from './layouts/theme-tokens';
+import {
+  BookingConfirmationDialog,
+  type ConfirmedBookingDetails,
+} from './booking-confirmation-dialog';
 
 import { Step1LocationCategory } from './steps/step1-location-category';
 import { Step2ServiceStaff } from './steps/step2-service-staff';
@@ -23,6 +27,7 @@ export interface BookingWizardProps {
   isEmbed?: boolean;
   isTransparent?: boolean;
   layoutOverride?: string;
+  initialConfirmationDetails?: ConfirmedBookingDetails | null;
 }
 
 function Formlayout1Standard({
@@ -50,27 +55,13 @@ function Formlayout1Standard({
           }`}
         >
           <CardContent className="p-4 sm:p-6">
-            {/* Stepper Header */}
             <WizardProgress />
-
-            {/* Step Content Container */}
             <div className="mt-6 min-h-[360px] flex flex-col justify-between">
-              {/* Step 1: Location & Category */}
               {currentStep === 1 && <Step1LocationCategory />}
-
-              {/* Step 2: Service & Staff */}
               {currentStep === 2 && <Step2ServiceStaff />}
-
-              {/* Step 3: Date & Time Slots */}
               {currentStep === 3 && <Step3DateTimeSlots />}
-
-              {/* Step 4: Customer Details Form */}
               {currentStep === 4 && <Step4CustomerDetails />}
-
-              {/* Step 5: Review & Confirm Booking */}
               {currentStep === 5 && <Step5ReviewConfirm />}
-
-              {/* Wizard Navigation Footer */}
               {currentStep < 5 && <WizardNavigation />}
             </div>
           </CardContent>
@@ -83,31 +74,16 @@ function Formlayout1Standard({
     <div className="min-h-screen bg-muted/30 flex flex-col justify-between">
       <div>
         <WizardHeader />
-
         <main className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
           <Card className="border-border/60 shadow-lg shadow-black/5 overflow-hidden">
             <CardContent className="p-6 sm:p-8">
-              {/* Stepper Header */}
               <WizardProgress />
-
-              {/* Step Content Container */}
               <div className="mt-6 min-h-[380px] flex flex-col justify-between">
-                {/* Step 1: Location & Category */}
                 {currentStep === 1 && <Step1LocationCategory />}
-
-                {/* Step 2: Service & Staff */}
                 {currentStep === 2 && <Step2ServiceStaff />}
-
-                {/* Step 3: Date & Time Slots */}
                 {currentStep === 3 && <Step3DateTimeSlots />}
-
-                {/* Step 4: Customer Details Form */}
                 {currentStep === 4 && <Step4CustomerDetails />}
-
-                {/* Step 5: Review & Confirm Booking */}
                 {currentStep === 5 && <Step5ReviewConfirm />}
-
-                {/* Wizard Navigation Footer */}
                 {currentStep < 5 && <WizardNavigation />}
               </div>
             </CardContent>
@@ -115,7 +91,6 @@ function Formlayout1Standard({
         </main>
       </div>
 
-      {/* Footer */}
       <footer className="py-6 text-center text-xs text-muted-foreground border-t bg-card/40 mt-8">
         <p>
           Powered by <span className="font-semibold text-foreground">BookingGo SaaS</span> &copy;{' '}
@@ -140,7 +115,6 @@ function WizardContent({
   const containerRef = useRef<HTMLDivElement>(null);
   const searchParams = useSearchParams();
 
-  // Active layout resolution: query param > prop override > business.layout > default Formlayout1
   const activeLayout = useMemo(() => {
     const queryLayout = searchParams.get('layout');
     if (queryLayout) return queryLayout;
@@ -148,12 +122,10 @@ function WizardContent({
     return business.layout || 'Formlayout1';
   }, [searchParams, layoutOverride, business.layout]);
 
-  // Dynamic Theme CSS Variables
   const themeStyles = useMemo(() => {
     return getThemeStyles(business.themeColor);
   }, [business.themeColor]);
 
-  // Auto-resize postMessage handshake for parent iframes
   useEffect(() => {
     if (typeof window === 'undefined') return;
 
@@ -206,7 +178,10 @@ export function BookingWizard({
   isEmbed = false,
   isTransparent = false,
   layoutOverride,
+  initialConfirmationDetails,
 }: BookingWizardProps) {
+  const [dialogOpen, setDialogOpen] = useState(Boolean(initialConfirmationDetails));
+
   return (
     <WizardProvider business={business} catalog={catalog}>
       <WizardContent
@@ -214,8 +189,19 @@ export function BookingWizard({
         isTransparent={isTransparent}
         layoutOverride={layoutOverride}
       />
+      {initialConfirmationDetails && (
+        <BookingConfirmationDialog
+          open={dialogOpen}
+          onOpenChange={setDialogOpen}
+          details={initialConfirmationDetails}
+          onReset={() => {
+            setDialogOpen(false);
+            if (typeof window !== 'undefined') {
+              window.history.replaceState({}, '', window.location.pathname);
+            }
+          }}
+        />
+      )}
     </WizardProvider>
   );
 }
-
-

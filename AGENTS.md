@@ -60,3 +60,8 @@ All AI agents working on this codebase MUST strictly follow these rules:
 - **Push Restriction**: **NEVER push to GitHub without explicit user permission**.
 - **Target Push Branch**: When explicitly told to push, push **STRICTLY to `origin sohel`** (`git push origin sohel`). NEVER push to `main`, `dev`, `master`, or other developer branches.
 - **Pre-Push Quality Gate**: Ensure `pnpm typecheck` (0 errors) and `pnpm lint` (0 errors, 0 warnings) pass cleanly before committing/pushing.
+
+## 9. Task Dependency & Scope Reporting Protocol
+- Whenever assigned a task, immediately audit prerequisites before coding:
+  - If required models, server actions, APIs, or files are **missing/not implemented yet**, report immediately to the user specifying the missing files.
+  - If a task or prerequisite belongs to another developer's scope (e.g. Developer 1 backend, Developer 3 company dashboard, Developer 4 billing), clearly inform the user with actionable next steps before proceeding.
