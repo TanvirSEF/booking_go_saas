@@ -64,7 +64,7 @@ export default async function LocationsPage() {
     <div className="min-h-screen bg-muted/20 pb-12">
       {/* Top Header & Breadcrumbs */}
       <div className="border-b bg-card">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
+        <div className=" mx-auto px-4 sm:px-6">
           {/* Breadcrumb Navigation */}
           <nav className="flex items-center gap-2 text-xs text-muted-foreground mb-3 font-medium">
             <Link
