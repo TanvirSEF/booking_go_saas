@@ -13,6 +13,7 @@ import { Staff } from '@/models/Staff';
 import { Location } from '@/models/Location';
 import { validateSlotAvailability, normalizeDateString } from '@/lib/booking-engine';
 import { hashPassword, verifyPassword } from '@/lib/password';
+import { sendAppointmentCancellationEmail, sendAppointmentRescheduledEmail } from '@/lib/mailer';
 import type {
   CustomerAppointmentItem,
   CustomerDashboardOverview,
@@ -317,6 +318,28 @@ export async function customerCancelAppointmentAction(
     await appointment.save();
     revalidatePath('/customer');
 
+    // Asynchronously dispatch cancellation email
+    void (async () => {
+      try {
+        const [biz, svc] = await Promise.all([
+          Business.findById(appointment.businessId).select('name slug').lean(),
+          Service.findById(appointment.serviceId).select('name').lean(),
+        ]);
+        await sendAppointmentCancellationEmail({
+          customerName: appointment.name,
+          customerEmail: appointment.email,
+          appointmentNumber: appointment.appointmentNumber,
+          serviceName: svc?.name || 'Appointment Service',
+          date: appointment.date,
+          time: appointment.time,
+          reason: reason?.trim(),
+          businessName: biz?.name || 'BookingGo',
+        });
+      } catch (e) {
+        console.error('[Mailer] Cancellation email notification error:', e);
+      }
+    })();
+
     return {
       success: true,
       message: `Appointment ${appointment.appointmentNumber} has been successfully cancelled.`,
@@ -414,6 +437,33 @@ export async function customerRescheduleAppointmentAction(
 
     await appointment.save();
     revalidatePath('/customer');
+
+    // Asynchronously dispatch rescheduled email
+    void (async () => {
+      try {
+        const [biz, svc, staff, loc] = await Promise.all([
+          Business.findById(appointment.businessId).select('name slug').lean(),
+          Service.findById(appointment.serviceId).select('name').lean(),
+          Staff.findById(appointment.staffId).select('name').lean(),
+          Location.findById(appointment.locationId).select('name').lean(),
+        ]);
+        await sendAppointmentRescheduledEmail({
+          customerName: appointment.name,
+          customerEmail: appointment.email,
+          appointmentNumber: appointment.appointmentNumber,
+          serviceName: svc?.name || 'Appointment Service',
+          staffName: staff?.name || 'Assigned Staff',
+          locationName: loc?.name || 'Main Location',
+          oldDate,
+          oldTime,
+          newDate: normalizedDate,
+          newTime,
+          businessName: biz?.name || 'BookingGo',
+        });
+      } catch (e) {
+        console.error('[Mailer] Reschedule email notification error:', e);
+      }
+    })();
 
     return {
       success: true,

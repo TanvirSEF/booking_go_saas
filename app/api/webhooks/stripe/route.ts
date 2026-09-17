@@ -8,6 +8,9 @@ import { Coupon } from "@/models/Coupon";
 import { UserCoupon } from "@/models/UserCoupon";
 import { Appointment } from "@/models/Appointment";
 import { AppointmentPayment } from "@/models/AppointmentPayment";
+import { Business } from "@/models/Business";
+import { Service } from "@/models/Service";
+import { sendPaymentReceiptEmail } from "@/lib/mailer";
 
 export const dynamic = "force-dynamic";
 
@@ -98,6 +101,29 @@ export async function POST(req: Request) {
                 receiptUrl: session.customer_details?.email || "",
                 status: "completed",
               });
+
+              // Asynchronously dispatch payment receipt email
+              void (async () => {
+                try {
+                  const [biz, svc] = await Promise.all([
+                    Business.findById(appointment.businessId).select("name").lean(),
+                    Service.findById(appointment.serviceId).select("name").lean(),
+                  ]);
+                  await sendPaymentReceiptEmail({
+                    customerName: appointment.name,
+                    customerEmail: appointment.email,
+                    appointmentNumber: appointment.appointmentNumber,
+                    serviceName: svc?.name || "Appointment Service",
+                    amount: appointment.price,
+                    discountAmount: Number(metadata.discountAmount || 0),
+                    finalAmount: paidAmount,
+                    paymentType: "Stripe",
+                    businessName: biz?.name || "BookingGo",
+                  });
+                } catch (e) {
+                  console.error("[Mailer] Stripe receipt email error:", e);
+                }
+              })();
 
               if (metadata.couponId) {
                 await Coupon.findByIdAndUpdate(metadata.couponId, {
