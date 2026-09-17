@@ -18,36 +18,40 @@ import type {
   WizardCatalog,
 } from '@/types/wizard';
 
-interface AppointmentPageProps {
+interface EmbedPageProps {
   params: Promise<{ slug: string }>;
-  searchParams: Promise<{ layout?: string }>;
+  searchParams: Promise<{ bg?: string; layout?: string }>;
 }
 
 export async function generateMetadata({
   params,
-}: AppointmentPageProps): Promise<Metadata> {
+}: EmbedPageProps): Promise<Metadata> {
   const { slug } = await params;
   await connectToDatabase();
 
   const business = await Business.findOne({ slug }).select('name').lean();
   if (!business) {
     return {
-      title: 'Business Not Found | BookingGo SaaS',
+      title: 'Business Not Found | BookingGo Embed',
     };
   }
 
   return {
     title: `Book Appointment - ${business.name} | BookingGo`,
     description: `Book your next service with ${business.name} online quickly and easily.`,
+    robots: {
+      index: false,
+      follow: false,
+    },
   };
 }
 
-export default async function AppointmentBookingPage({
+export default async function EmbedBookingPage({
   params,
   searchParams,
-}: AppointmentPageProps) {
+}: EmbedPageProps) {
   const { slug } = await params;
-  const { layout } = await searchParams;
+  const { bg, layout } = await searchParams;
   await connectToDatabase();
 
 
@@ -149,6 +153,14 @@ export default async function AppointmentBookingPage({
     customFields,
   };
 
-  return <BookingWizard business={business} catalog={catalog} layoutOverride={layout} />;
+  return (
+    <BookingWizard
+      business={business}
+      catalog={catalog}
+      isEmbed={true}
+      isTransparent={bg === 'transparent'}
+      layoutOverride={layout}
+    />
+  );
 }
 
