@@ -16,3 +16,4 @@ export * from './UserCoupon';
 export * from './Order';
 export * from './BankTransferPayment';
 export * from './Testimonial';
+export * from './ContactUs';
