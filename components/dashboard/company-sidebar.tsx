@@ -94,7 +94,7 @@ export function CompanySidebar({ businessName, ...props }: CompanySidebarProps) 
             Business Management
           </SidebarGroupLabel>
           <SidebarGroupContent>
-            <SidebarMenu>
+            <SidebarMenu className="gap-1">
               <SidebarMenuItem>
                 <SidebarMenuButton
                   asChild
