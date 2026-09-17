@@ -119,11 +119,18 @@ export function Step5ReviewConfirm() {
         originalPrice,
       });
 
-      if (!res.valid || !res.coupon) {
-        setCouponError(res.error || 'Invalid promo code.');
+      if (!res.success || !res.coupon) {
+        setCouponError(res.error || res.message || 'Invalid promo code.');
         setAppliedCoupon(null);
       } else {
-        setAppliedCoupon(res.coupon);
+        setAppliedCoupon({
+          code: res.coupon.couponCode,
+          name: res.coupon.couponName,
+          discountType: res.coupon.discountType,
+          discountValue: res.coupon.discount,
+          discountAmount: res.coupon.discountAmount,
+          finalPrice: res.coupon.finalPrice,
+        });
         setCouponInput('');
         setCouponError(null);
       }
@@ -698,12 +705,14 @@ export function Step5ReviewConfirm() {
       </div>
 
       {/* Confirmation Modal */}
-      <BookingConfirmationDialog
-        open={isConfirmationOpen}
-        onOpenChange={setIsConfirmationOpen}
-        details={confirmationDetails}
-        onReset={resetWizard}
-      />
+      {confirmationDetails && (
+        <BookingConfirmationDialog
+          open={isConfirmationOpen}
+          onOpenChange={setIsConfirmationOpen}
+          details={confirmationDetails}
+          onReset={resetWizard}
+        />
+      )}
     </div>
   );
 }

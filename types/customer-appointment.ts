@@ -16,8 +16,8 @@ export interface CustomerAppointmentItem {
   locationId: string;
   locationName: string;
   locationAddress?: string;
-  date: string; // YYYY-MM-DD
-  time: string; // e.g. "09:00 - 09:30"
+  date: string;
+  time: string;
   appointmentStatus: string;
   statusColor: string;
   paymentType: string;
@@ -55,15 +55,15 @@ export interface CustomerCancelInput {
 
 export interface CustomerRescheduleInput {
   appointmentId: string;
-  newDate: string; // YYYY-MM-DD or DD-MM-YYYY
-  newTime: string; // e.g. "10:00 - 10:30"
+  newDate: string;
+  newTime: string;
   newStaffId?: string;
 }
 
 export interface CustomerProfileUpdateInput {
-  name: string;
-  contact: string;
-  gender?: 'male' | 'female' | 'other' | '';
+  name?: string;
+  contact?: string;
+  gender?: string;
   dob?: string;
   currentPassword?: string;
   newPassword?: string;

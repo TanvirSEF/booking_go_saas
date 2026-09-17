@@ -6,43 +6,42 @@ import { getCustomerDashboardAction } from "@/actions/customer-appointment";
 export const dynamic = "force-dynamic";
 
 export default async function CustomerDashboardPage() {
-  const dashboardData = await getCustomerDashboardAction();
+  const dashboardRes = await getCustomerDashboardAction();
+  const data = dashboardRes?.data;
 
-  const metrics = dashboardData?.metrics || {
-    total: 0,
-    upcoming: 0,
-    completed: 0,
-    cancelled: 0,
-  };
+  const total = data?.totalBookings || 0;
+  const upcoming = data?.upcomingAppointments?.length || 0;
+  const completed = data?.completedBookings || 0;
+  const cancelled = data?.cancelledBookings || 0;
 
-  const upcomingBookings = dashboardData?.upcoming || [];
-  const pastBookings = dashboardData?.past || [];
+  const upcomingBookings = data?.upcomingAppointments || [];
+  const pastBookings = data?.pastAppointments || [];
 
   const metricCards = [
     {
       title: "Total Bookings",
-      value: metrics.total,
+      value: total,
       icon: Calendar,
       color: "text-blue-600 dark:text-blue-400",
       bgColor: "bg-blue-50 dark:bg-blue-950/40",
     },
     {
       title: "Upcoming",
-      value: metrics.upcoming,
+      value: upcoming,
       icon: Clock,
       color: "text-amber-600 dark:text-amber-400",
       bgColor: "bg-amber-50 dark:bg-amber-950/40",
     },
     {
       title: "Completed",
-      value: metrics.completed,
+      value: completed,
       icon: CheckCircle2,
       color: "text-emerald-600 dark:text-emerald-400",
       bgColor: "bg-emerald-50 dark:bg-emerald-950/40",
     },
     {
       title: "Cancelled",
-      value: metrics.cancelled,
+      value: cancelled,
       icon: XCircle,
       color: "text-rose-600 dark:text-rose-400",
       bgColor: "bg-rose-50 dark:bg-rose-950/40",

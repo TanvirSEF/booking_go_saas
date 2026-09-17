@@ -16,7 +16,6 @@ import {
   DropdownMenuItem,
 } from '@/components/ui/dropdown-menu';
 import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
 import {
   IconCheck,
   IconCalendar,
@@ -58,236 +57,225 @@ export interface ConfirmedBookingDetails {
 }
 
 export interface BookingConfirmationDialogProps {
-  open: boolean;
-  onOpenChange: (open: boolean) => void;
-  details: ConfirmedBookingDetails | null;
-  onReset: () => void;
+  open?: boolean;
+  isOpen?: boolean;
+  onOpenChange?: (open: boolean) => void;
+  onClose?: () => void;
+  details: ConfirmedBookingDetails;
+  onReset?: () => void;
+  onBookAnother?: () => void;
 }
 
 export function BookingConfirmationDialog({
   open,
+  isOpen,
   onOpenChange,
+  onClose,
   details,
   onReset,
+  onBookAnother,
 }: BookingConfirmationDialogProps) {
   const [receiptOpen, setReceiptOpen] = useState(false);
+  const isDialogOpen = open !== undefined ? open : isOpen !== undefined ? isOpen : false;
 
-  if (!details) return null;
-
-  const eventDetails: CalendarEventDetails = {
-    title: `Appointment: ${details.serviceName} at ${details.businessName}`,
-    description: `Booking Reference: ${details.appointmentNumber}\nService: ${details.serviceName}\nSpecialist: ${details.staffName}\nLocation: ${details.locationName}\nClient: ${details.customerName} (${details.customerEmail})`,
-    location: `${details.locationName}, ${details.businessName}`,
-    dateStr: details.date,
-    timeSlot: details.time,
-    appointmentNumber: details.appointmentNumber,
+  const handleClose = () => {
+    onOpenChange?.(false);
+    onClose?.();
   };
 
-  const handleCopyAppointmentNumber = () => {
-    if (details.appointmentNumber) {
-      navigator.clipboard.writeText(details.appointmentNumber);
+  const handleCopyNumber = async () => {
+    try {
+      await navigator.clipboard.writeText(details.appointmentNumber);
       toast.success('Appointment number copied to clipboard!');
+    } catch {
+      toast.error('Failed to copy appointment number.');
     }
   };
 
-  const handleBookAnother = () => {
-    onOpenChange(false);
-    onReset();
-  };
-
-  const handleGoogleCalendar = () => {
-    const url = getGoogleCalendarUrl(eventDetails);
-    window.open(url, '_blank', 'noopener,noreferrer');
-  };
-
-  const handleOutlookCalendar = () => {
-    const url = getOutlookCalendarUrl(eventDetails);
-    window.open(url, '_blank', 'noopener,noreferrer');
-  };
-
-  const handleAppleIcs = () => {
-    downloadIcsFile(eventDetails, `${details.appointmentNumber}-booking.ics`);
-    toast.success('Calendar .ics file downloaded.');
+  const calEvent: CalendarEventDetails = {
+    title: `Appointment: ${details.serviceName || 'Service'} at ${details.businessName || 'Business'}`,
+    description: `Appointment Number: ${details.appointmentNumber}\nSpecialist: ${details.staffName || 'Staff'}\nLocation: ${details.locationName || 'Location'}`,
+    location: details.locationName || 'Main Location',
+    dateStr: details.date || new Date().toISOString().split('T')[0],
+    timeSlot: details.time || '10:00 - 11:00',
+    appointmentNumber: details.appointmentNumber,
   };
 
   return (
     <>
-      <Dialog open={open} onOpenChange={onOpenChange}>
-        <DialogContent className="sm:max-w-lg p-0 overflow-hidden border-border/70 shadow-2xl">
-          {/* Header Banner */}
-          <div className="bg-emerald-600 text-white p-6 text-center relative">
-            <div className="w-14 h-14 rounded-full bg-white/20 backdrop-blur-md flex items-center justify-center mx-auto mb-3 text-white ring-4 ring-white/30">
-              <IconCheck size={28} className="stroke-[3]" />
+      <Dialog open={isDialogOpen} onOpenChange={(val) => !val && handleClose()}>
+        <DialogContent className="max-w-lg p-0 overflow-hidden border-border/80 bg-card text-card-foreground">
+          <div className="bg-primary/10 border-b border-primary/20 px-6 py-8 text-center">
+            <div className="mx-auto mb-3 flex h-14 w-14 items-center justify-center rounded-full bg-primary text-primary-foreground shadow-md">
+              <IconCheck className="h-8 w-8 stroke-[2.5]" />
             </div>
-            <DialogTitle className="text-xl font-bold tracking-tight text-white">
-              Appointment Confirmed!
+            <DialogTitle className="text-2xl font-bold tracking-tight text-foreground">
+              Booking Confirmed!
             </DialogTitle>
-            <DialogDescription className="text-xs text-white/90 mt-1 max-w-sm mx-auto">
-              Your booking request has been confirmed. A confirmation receipt has been scheduled.
+            <DialogDescription className="mt-1 text-sm text-muted-foreground">
+              Thank you, <span className="font-medium text-foreground">{details.customerName || 'Customer'}</span>. Your appointment has been scheduled.
             </DialogDescription>
           </div>
 
-          {/* Confirmation Content */}
-          <div className="p-6 space-y-5">
-            {/* Appointment Reference Box */}
-            <div className="p-4 rounded-xl bg-muted/40 border flex items-center justify-between">
+          <div className="px-6 py-5 space-y-4">
+            <div className="flex items-center justify-between rounded-lg border border-border bg-muted/40 px-4 py-3">
               <div>
-                <span className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider block">
-                  Appointment Reference
+                <span className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                  Appointment Number
                 </span>
-                <span className="text-lg font-mono font-bold text-foreground">
+                <p className="text-lg font-mono font-bold text-foreground">
                   {details.appointmentNumber}
-                </span>
+                </p>
               </div>
               <Button
-                type="button"
                 variant="outline"
                 size="sm"
-                onClick={handleCopyAppointmentNumber}
-                className="h-8 gap-1.5 text-xs font-medium cursor-pointer"
+                onClick={handleCopyNumber}
+                className="gap-1.5 text-xs"
               >
-                <IconCopy size={13} />
-                <span>Copy</span>
+                <IconCopy className="h-3.5 w-3.5" />
+                Copy
               </Button>
             </div>
 
-            {/* Details Grid */}
-            <div className="space-y-3 text-xs">
-              <div className="flex items-center justify-between py-2 border-b border-border/50">
-                <span className="text-muted-foreground flex items-center gap-1.5">
-                  <IconCut size={14} className="text-primary" />
-                  <span>Service</span>
-                </span>
-                <span className="font-semibold text-foreground">{details.serviceName}</span>
-              </div>
-
-              <div className="flex items-center justify-between py-2 border-b border-border/50">
-                <span className="text-muted-foreground flex items-center gap-1.5">
-                  <IconUser size={14} className="text-primary" />
-                  <span>Specialist</span>
-                </span>
-                <span className="font-medium text-foreground">{details.staffName}</span>
-              </div>
-
-              <div className="flex items-center justify-between py-2 border-b border-border/50">
-                <span className="text-muted-foreground flex items-center gap-1.5">
-                  <IconMapPin size={14} className="text-primary" />
-                  <span>Location</span>
-                </span>
-                <span className="font-medium text-foreground">{details.locationName}</span>
-              </div>
-
-              <div className="flex items-center justify-between py-2 border-b border-border/50">
-                <span className="text-muted-foreground flex items-center gap-1.5">
-                  <IconCalendar size={14} className="text-primary" />
-                  <span>Date & Time</span>
-                </span>
-                <div className="flex items-center gap-1 font-semibold text-foreground">
-                  <span>{details.date}</span>
-                  <span className="text-muted-foreground">@</span>
-                  <Badge variant="outline" className="font-mono text-[11px] font-bold">
-                    {details.time}
-                  </Badge>
+            <div className="grid grid-cols-2 gap-3 text-sm">
+              <div className="flex items-start gap-2.5 rounded-md border border-border/60 p-3 bg-card">
+                <IconCut className="h-4 w-4 mt-0.5 text-primary shrink-0" />
+                <div>
+                  <span className="text-xs text-muted-foreground block">Service</span>
+                  <span className="font-semibold text-foreground">{details.serviceName || 'Service'}</span>
                 </div>
               </div>
 
-              <div className="flex items-center justify-between py-2">
-                <span className="text-muted-foreground">Client Name</span>
-                <span className="font-medium text-foreground">{details.customerName}</span>
+              <div className="flex items-start gap-2.5 rounded-md border border-border/60 p-3 bg-card">
+                <IconUser className="h-4 w-4 mt-0.5 text-primary shrink-0" />
+                <div>
+                  <span className="text-xs text-muted-foreground block">Specialist</span>
+                  <span className="font-semibold text-foreground">{details.staffName || 'Assigned Staff'}</span>
+                </div>
+              </div>
+
+              <div className="flex items-start gap-2.5 rounded-md border border-border/60 p-3 bg-card">
+                <IconCalendar className="h-4 w-4 mt-0.5 text-primary shrink-0" />
+                <div>
+                  <span className="text-xs text-muted-foreground block">Date & Time</span>
+                  <span className="font-semibold text-foreground">
+                    {details.date || 'Scheduled Date'} {details.time ? `(${details.time})` : ''}
+                  </span>
+                </div>
+              </div>
+
+              <div className="flex items-start gap-2.5 rounded-md border border-border/60 p-3 bg-card">
+                <IconMapPin className="h-4 w-4 mt-0.5 text-primary shrink-0" />
+                <div>
+                  <span className="text-xs text-muted-foreground block">Location</span>
+                  <span className="font-semibold text-foreground">{details.locationName || 'Main Location'}</span>
+                </div>
               </div>
             </div>
 
-            {/* Post-Booking Action Tools: Add to Calendar & Print Voucher */}
-            <div className="grid grid-cols-2 gap-2.5 pt-1">
-              {/* Calendar Dropdown */}
+            <div className="flex items-center justify-between border-t border-border pt-3">
+              <span className="text-sm text-muted-foreground">Total Paid / Due</span>
+              <span className="text-lg font-bold text-foreground">
+                {details.currencySymbol || '$'}{Number(details.price || 0).toFixed(2)}
+              </span>
+            </div>
+          </div>
+
+          <DialogFooter className="flex-col sm:flex-row gap-2 border-t border-border bg-muted/20 px-6 py-4">
+            <div className="flex flex-wrap gap-2 w-full sm:w-auto">
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
-                  <Button
-                    type="button"
-                    variant="outline"
-                    className="h-10 text-xs font-medium rounded-xl flex items-center justify-center gap-1.5 cursor-pointer"
-                  >
-                    <IconCalendarPlus size={15} className="text-primary" />
-                    <span>Add to Calendar</span>
-                    <IconChevronDown size={13} className="text-muted-foreground ml-auto" />
+                  <Button variant="outline" size="sm" className="gap-1.5 text-xs">
+                    <IconCalendarPlus className="h-3.5 w-3.5 text-primary" />
+                    Add to Calendar
+                    <IconChevronDown className="h-3 w-3 opacity-60" />
                   </Button>
                 </DropdownMenuTrigger>
-                <DropdownMenuContent align="start" className="w-52 rounded-xl shadow-lg">
+                <DropdownMenuContent align="start" className="w-48">
                   <DropdownMenuItem
-                    onClick={handleGoogleCalendar}
-                    className="text-xs flex items-center gap-2 cursor-pointer py-2"
+                    onClick={() => window.open(getGoogleCalendarUrl(calEvent), '_blank')}
+                    className="gap-2 text-xs cursor-pointer"
                   >
-                    <IconBrandGoogle size={15} className="text-blue-500" />
-                    <span>Google Calendar</span>
+                    <IconBrandGoogle className="h-3.5 w-3.5" />
+                    Google Calendar
                   </DropdownMenuItem>
-
                   <DropdownMenuItem
-                    onClick={handleAppleIcs}
-                    className="text-xs flex items-center gap-2 cursor-pointer py-2"
+                    onClick={() => window.open(getOutlookCalendarUrl(calEvent), '_blank')}
+                    className="gap-2 text-xs cursor-pointer"
                   >
-                    <IconBrandApple size={15} className="text-foreground" />
-                    <span>Apple / iCal (.ics)</span>
+                    <IconMail className="h-3.5 w-3.5" />
+                    Outlook Web
                   </DropdownMenuItem>
-
                   <DropdownMenuItem
-                    onClick={handleOutlookCalendar}
-                    className="text-xs flex items-center gap-2 cursor-pointer py-2"
+                    onClick={() => downloadIcsFile(calEvent)}
+                    className="gap-2 text-xs cursor-pointer"
                   >
-                    <IconMail size={15} className="text-sky-600" />
-                    <span>Outlook 365 Web</span>
+                    <IconBrandApple className="h-3.5 w-3.5" />
+                    iCal / Apple (.ics)
                   </DropdownMenuItem>
                 </DropdownMenuContent>
               </DropdownMenu>
 
-              {/* Print Receipt / Voucher Button */}
               <Button
-                type="button"
                 variant="outline"
+                size="sm"
                 onClick={() => setReceiptOpen(true)}
-                className="h-10 text-xs font-medium rounded-xl flex items-center justify-center gap-1.5 cursor-pointer"
+                className="gap-1.5 text-xs"
               >
-                <IconPrinter size={15} className="text-primary" />
-                <span>Print Receipt</span>
+                <IconPrinter className="h-3.5 w-3.5" />
+                View Receipt
               </Button>
             </div>
-          </div>
 
-          {/* Dialog Footer Actions */}
-          <DialogFooter className="p-6 pt-0 bg-card flex flex-col-reverse sm:flex-row gap-2 sm:justify-between border-t border-border/40 mt-2">
-            <Button
-              type="button"
-              variant="outline"
-              onClick={handleBookAnother}
-              className="flex items-center gap-1.5 text-xs font-medium cursor-pointer w-full sm:w-auto"
-            >
-              <IconRefresh size={14} />
-              <span>Book Another</span>
-            </Button>
-
-            <Button
-              asChild
-              className="bg-primary hover:bg-primary/90 text-primary-foreground flex items-center gap-1.5 text-xs font-medium w-full sm:w-auto shadow-sm"
-            >
-              <Link
-                href={`/find-appointment/${details.businessSlug}?number=${encodeURIComponent(
-                  details.appointmentNumber
-                )}&email=${encodeURIComponent(details.customerEmail)}`}
+            <div className="flex gap-2 ml-auto w-full sm:w-auto">
+              <Button
+                variant="secondary"
+                size="sm"
+                asChild
+                className="gap-1.5 text-xs"
               >
-                <IconSearch size={14} />
-                <span>Track Appointment</span>
-              </Link>
-            </Button>
+                <Link href={`/find-appointment/${details.appointmentNumber}`}>
+                  <IconSearch className="h-3.5 w-3.5" />
+                  Track Booking
+                </Link>
+              </Button>
+
+              <Button
+                size="sm"
+                onClick={() => {
+                  handleClose();
+                  onReset?.();
+                  onBookAnother?.();
+                }}
+                className="gap-1.5 text-xs"
+              >
+                <IconRefresh className="h-3.5 w-3.5" />
+                Book Another
+              </Button>
+            </div>
           </DialogFooter>
         </DialogContent>
       </Dialog>
 
-      {/* Printable Receipt Modal */}
       <AppointmentReceiptDialog
         open={receiptOpen}
         onOpenChange={setReceiptOpen}
-        details={details}
+        details={{
+          appointmentNumber: details.appointmentNumber,
+          businessSlug: details.businessSlug || '',
+          businessName: details.businessName || '',
+          serviceName: details.serviceName || '',
+          staffName: details.staffName || '',
+          locationName: details.locationName || '',
+          date: details.date || '',
+          time: details.time || '',
+          customerName: details.customerName || '',
+          customerEmail: details.customerEmail || '',
+          price: details.price || 0,
+          currencySymbol: details.currencySymbol || '$',
+        }}
       />
     </>
   );
 }
-

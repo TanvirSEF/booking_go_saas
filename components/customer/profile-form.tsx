@@ -15,10 +15,11 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { updateCustomerProfileAction, type CustomerProfileData } from "@/actions/customer-appointment";
+import { updateCustomerProfileAction } from "@/actions/customer-appointment";
+import type { CustomerProfile } from "@/types/customer-appointment";
 
 interface ProfileFormProps {
-  initialData: CustomerProfileData;
+  initialData: CustomerProfile;
 }
 
 export function ProfileForm({ initialData }: ProfileFormProps) {

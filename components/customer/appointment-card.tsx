@@ -6,37 +6,18 @@ import {
   Clock,
   UserCheck,
   Building2,
-  Receipt,
   RotateCcw,
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
-
-export interface AppointmentItem {
-  id: string;
-  slug?: string;
-  serviceTitle: string;
-  specialistName?: string;
-  companyName?: string;
-  companySlug?: string;
-  date: string | Date;
-  startTime: string;
-  endTime: string;
-  price: number;
-  currency?: string;
-  status: "pending" | "confirmed" | "completed" | "cancelled" | string;
-  paymentStatus: "unpaid" | "paid" | "pending_verification" | "refunded" | string;
-  receiptUrl?: string;
-  isGuestBooking?: boolean;
-}
+import type { CustomerAppointmentItem } from "@/types/customer-appointment";
 
 interface AppointmentCardProps {
-  appointment: AppointmentItem;
+  appointment: CustomerAppointmentItem;
   isUpcoming?: boolean;
-  onCancelClick?: (appointment: AppointmentItem) => void;
-  onRescheduleClick?: (appointment: AppointmentItem) => void;
-  onViewReceiptClick?: (appointment: AppointmentItem) => void;
+  onCancelClick?: (appointment: CustomerAppointmentItem) => void;
+  onRescheduleClick?: (appointment: CustomerAppointmentItem) => void;
 }
 
 export function AppointmentCard({
@@ -44,9 +25,8 @@ export function AppointmentCard({
   isUpcoming = false,
   onCancelClick,
   onRescheduleClick,
-  onViewReceiptClick,
 }: AppointmentCardProps) {
-  const getStatusBadge = (status: AppointmentItem["status"]) => {
+  const getStatusBadge = (status: string) => {
     switch (status?.toLowerCase()) {
       case "confirmed":
         return <Badge className="bg-emerald-500/15 text-emerald-700 dark:text-emerald-400 border-emerald-500/20">Confirmed</Badge>;
@@ -75,35 +55,30 @@ export function AppointmentCard({
           <div className="space-y-3 flex-1">
             <div className="flex flex-wrap items-center gap-2">
               <h3 className="font-semibold text-base sm:text-lg text-foreground">
-                {appointment.serviceTitle}
+                {appointment.serviceName}
               </h3>
-              {getStatusBadge(appointment.status)}
-              {appointment.isGuestBooking && (
-                <Badge variant="outline" className="text-xs bg-muted text-muted-foreground">
-                  Guest Booking
-                </Badge>
-              )}
+              {getStatusBadge(appointment.appointmentStatus)}
             </div>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-y-1.5 gap-x-4 text-sm text-muted-foreground">
               <div className="flex items-center gap-2">
                 <Calendar className="w-4 h-4 text-primary shrink-0" />
-                <span>{formattedDate}</span>
+                <span>{formattedDate || appointment.date}</span>
               </div>
               <div className="flex items-center gap-2">
                 <Clock className="w-4 h-4 text-primary shrink-0" />
-                <span>{appointment.startTime} - {appointment.endTime}</span>
+                <span>{appointment.time}</span>
               </div>
-              {appointment.specialistName && (
+              {appointment.staffName && (
                 <div className="flex items-center gap-2">
                   <UserCheck className="w-4 h-4 text-muted-foreground shrink-0" />
-                  <span>Specialist: {appointment.specialistName}</span>
+                  <span>Specialist: {appointment.staffName}</span>
                 </div>
               )}
-              {appointment.companyName && (
+              {appointment.businessName && (
                 <div className="flex items-center gap-2">
                   <Building2 className="w-4 h-4 text-muted-foreground shrink-0" />
-                  <span>Company: {appointment.companyName}</span>
+                  <span>Business: {appointment.businessName}</span>
                 </div>
               )}
             </div>
@@ -113,47 +88,36 @@ export function AppointmentCard({
             <div className="text-left sm:text-right">
               <span className="text-xs text-muted-foreground block">Total Amount</span>
               <span className="text-lg font-bold text-foreground">
-                {appointment.currency || "$"}{Number(appointment.price || 0).toFixed(2)}
+                {appointment.businessCurrencySymbol || "$"}{Number(appointment.servicePrice || 0).toFixed(2)}
               </span>
             </div>
 
             {isUpcoming ? (
               <div className="flex flex-wrap items-center gap-2">
-                {appointment.receiptUrl && (
+                {appointment.canReschedule && (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => onRescheduleClick?.(appointment)}
+                    className="text-xs"
+                  >
+                    Reschedule
+                  </Button>
+                )}
+                {appointment.canCancel && (
                   <Button
                     variant="ghost"
                     size="sm"
-                    onClick={() => onViewReceiptClick?.(appointment)}
-                    className="text-xs gap-1"
+                    onClick={() => onCancelClick?.(appointment)}
+                    className="text-xs text-red-600 hover:text-red-700 hover:bg-red-50 dark:hover:bg-red-950/50"
                   >
-                    <Receipt className="w-3.5 h-3.5" />
-                    Receipt
+                    Cancel Booking
                   </Button>
-                )}
-                {appointment.status !== "cancelled" && (
-                  <>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => onRescheduleClick?.(appointment)}
-                      className="text-xs"
-                    >
-                      Reschedule
-                    </Button>
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => onCancelClick?.(appointment)}
-                      className="text-xs text-red-600 hover:text-red-700 hover:bg-red-50 dark:hover:bg-red-950/50"
-                    >
-                      Cancel Booking
-                    </Button>
-                  </>
                 )}
               </div>
             ) : (
               <Button asChild size="sm" variant="default" className="text-xs gap-1.5">
-                <Link href={`/appointments/${appointment.companySlug || appointment.slug || "booking"}`}>
+                <Link href={`/appointments/${appointment.businessSlug || "booking"}`}>
                   <RotateCcw className="w-3.5 h-3.5" />
                   Book Again
                 </Link>

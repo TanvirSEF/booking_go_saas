@@ -5,7 +5,13 @@ import { ChangePasswordForm } from "@/components/customer/change-password-form";
 export const dynamic = "force-dynamic";
 
 export default async function CustomerProfilePage() {
-  const profile = await getCustomerProfileAction();
+  const res = await getCustomerProfileAction();
+  const profile = res.data || {
+    id: '',
+    name: '',
+    email: '',
+    contact: '',
+  };
 
   const initialData = profile || {
     name: "",
