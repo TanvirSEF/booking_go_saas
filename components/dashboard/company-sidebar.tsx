@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
+  IconCalendarEvent,
   IconChevronRight,
   IconClock,
   IconFolder,
@@ -196,6 +197,24 @@ export function CompanySidebar({ businessName, ...props }: CompanySidebarProps) 
                   <Link href="/dashboard/staff">
                     <IconUsers size={18} />
                     <span>Staff</span>
+                  </Link>
+                </SidebarMenuButton>
+              </SidebarMenuItem>
+
+              {/* Holidays & Off-Days Management */}
+              <SidebarMenuItem>
+                <SidebarMenuButton
+                  asChild
+                  isActive={pathname.startsWith("/dashboard/business/holidays")}
+                  className={cn(
+                    "rounded-xl font-medium transition-colors",
+                    pathname.startsWith("/dashboard/business/holidays") &&
+                    "bg-primary text-primary-foreground hover:bg-primary hover:text-primary-foreground shadow-xs font-semibold"
+                  )}
+                >
+                  <Link href="/dashboard/business/holidays">
+                    <IconCalendarEvent size={18} />
+                    <span>Holidays</span>
                   </Link>
                 </SidebarMenuButton>
               </SidebarMenuItem>

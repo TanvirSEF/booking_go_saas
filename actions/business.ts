@@ -18,3 +18,14 @@ export { getBusinessHoursAction, updateBusinessHoursAction };
 export async function updateBusinessHours(hours: BusinessHourDTO[]) {
   return updateBusinessHoursAction(hours);
 }
+export {
+  getBusinessHolidaysAction,
+  addBusinessHolidayAction,
+  addBusinessHolidayRangeAction,
+  deleteBusinessHolidayAction,
+  deleteBusinessHolidayRangeAction,
+  getBusinessHolidays,
+  addBusinessHoliday,
+  deleteBusinessHoliday,
+  deleteBusinessHolidayRange,
+} from './business-holidays';
