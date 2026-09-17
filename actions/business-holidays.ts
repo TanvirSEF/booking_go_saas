@@ -1,0 +1,177 @@
+'use server';
+
+import { Types } from 'mongoose';
+import { revalidatePath } from 'next/cache';
+import { z } from 'zod';
+import { auth } from '@/auth';
+import { connectToDatabase } from '@/lib/db';
+import { Business } from '@/models/Business';
+import { User } from '@/models/User';
+import type {
+  BusinessHolidayDTO,
+  HolidayActionResponse,
+} from '@/types/business-hours';
+
+const dateRegex = /^\d{4}-\d{2}-\d{2}$/;
+
+const holidayInputSchema = z.object({
+  date: z.string().regex(dateRegex, 'Date must be formatted as YYYY-MM-DD'),
+  description: z.string().max(100, 'Description cannot exceed 100 characters').optional().default(''),
+});
+
+async function resolveTenantContext() {
+  const session = await auth();
+  if (!session?.user?.id) {
+    throw new Error('Unauthorized. Please log in.');
+  }
+
+  await connectToDatabase();
+
+  const user = await User.findById(session.user.id).lean();
+  if (!user) {
+    throw new Error('User not found.');
+  }
+
+  const companyId =
+    user.role === 'company'
+      ? user._id
+      : user.companyId
+        ? new Types.ObjectId(user.companyId)
+        : null;
+
+  if (!companyId) {
+    throw new Error('Company context could not be determined.');
+  }
+
+  let activeBusinessId = user.activeBusinessId;
+  if (!activeBusinessId) {
+    const defaultBusiness = await Business.findOne({ companyId }).lean();
+    if (defaultBusiness) {
+      activeBusinessId = defaultBusiness._id;
+      await User.findByIdAndUpdate(user._id, { activeBusinessId: defaultBusiness._id });
+    }
+  }
+
+  if (!activeBusinessId) {
+    throw new Error('No active business found for this organization.');
+  }
+
+  return {
+    userId: user._id,
+    companyId,
+    businessId: activeBusinessId,
+  };
+}
+
+/**
+ * Fetch all declared business holidays.
+ */
+export async function getBusinessHolidaysAction(): Promise<HolidayActionResponse> {
+  try {
+    const { businessId } = await resolveTenantContext();
+
+    const business = await Business.findById(businessId).select('holidays').lean();
+    if (!business) {
+      return { success: false, error: 'Business organization not found.' };
+    }
+
+    const holidays: BusinessHolidayDTO[] = (business.holidays || [])
+      .map((h) => ({
+        date: h.date,
+        description: h.description || '',
+      }))
+      .sort((a, b) => a.date.localeCompare(b.date));
+
+    return { success: true, data: holidays };
+  } catch (error) {
+    const message = error instanceof Error ? error.message : 'Failed to retrieve holidays.';
+    return { success: false, error: message };
+  }
+}
+
+/**
+ * Add a new business holiday / closed date.
+ */
+export async function addBusinessHolidayAction(input: {
+  date: string;
+  description?: string;
+}): Promise<HolidayActionResponse> {
+  try {
+    const { businessId } = await resolveTenantContext();
+
+    const validated = holidayInputSchema.parse(input);
+
+    const business = await Business.findById(businessId);
+    if (!business) {
+      return { success: false, error: 'Business organization not found.' };
+    }
+
+    const existingIndex = (business.holidays || []).findIndex(
+      (h) => h.date === validated.date
+    );
+
+    if (existingIndex !== -1) {
+      return {
+        success: false,
+        error: `A holiday is already registered for ${validated.date}.`,
+      };
+    }
+
+    business.holidays.push({
+      date: validated.date,
+      description: validated.description || '',
+    });
+
+    await business.save();
+
+    revalidatePath('/dashboard/business/holidays');
+    revalidatePath('/dashboard');
+
+    const updatedHolidays: BusinessHolidayDTO[] = (business.holidays || [])
+      .map((h) => ({
+        date: h.date,
+        description: h.description || '',
+      }))
+      .sort((a, b) => a.date.localeCompare(b.date));
+
+    return { success: true, data: updatedHolidays };
+  } catch (error) {
+    if (error instanceof z.ZodError) {
+      return { success: false, error: error.issues.map((i) => i.message).join(', ') };
+    }
+    const message = error instanceof Error ? error.message : 'Failed to add business holiday.';
+    return { success: false, error: message };
+  }
+}
+
+/**
+ * Remove an existing business holiday by date string.
+ */
+export async function deleteBusinessHolidayAction(date: string): Promise<HolidayActionResponse> {
+  try {
+    const { businessId } = await resolveTenantContext();
+
+    const business = await Business.findById(businessId);
+    if (!business) {
+      return { success: false, error: 'Business organization not found.' };
+    }
+
+    business.holidays = (business.holidays || []).filter((h) => h.date !== date);
+    await business.save();
+
+    revalidatePath('/dashboard/business/holidays');
+    revalidatePath('/dashboard');
+
+    const updatedHolidays: BusinessHolidayDTO[] = (business.holidays || [])
+      .map((h) => ({
+        date: h.date,
+        description: h.description || '',
+      }))
+      .sort((a, b) => a.date.localeCompare(b.date));
+
+    return { success: true, data: updatedHolidays };
+  } catch (error) {
+    const message = error instanceof Error ? error.message : 'Failed to delete business holiday.';
+    return { success: false, error: message };
+  }
+}
