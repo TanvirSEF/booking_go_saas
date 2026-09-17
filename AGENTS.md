@@ -55,8 +55,8 @@ All AI agents working on this codebase MUST strictly follow these rules:
 - **Idiomatic Error & Loading States**: Use Next.js conventions (`error.tsx`, `not-found.tsx`) and standard Skeleton loaders rather than custom ad-hoc error dialogs.
 
 ## 8. Developer Git Workflow & Strict Branch Rules
-- **Designated Branch**: Always work on local branch **`sohel`**.
+- **Designated Branch**: Always work on local branch **`fahim`**.
 - **Pull Protocol**: Pull / sync latest codebase updates from **`origin/main`** (`git fetch origin main`, `git merge origin/main`).
 - **Push Restriction**: **NEVER push to GitHub without explicit user permission**.
-- **Target Push Branch**: When explicitly told to push, push **STRICTLY to `origin sohel`** (`git push origin sohel`). NEVER push to `main`, `dev`, `master`, or other developer branches.
+- **Target Push Branch**: When explicitly told to push, push **STRICTLY to `origin fahim`** (`git push origin fahim`). NEVER push to `main`, `dev`, `master`, or other developer branches.
 - **Pre-Push Quality Gate**: Ensure `pnpm typecheck` (0 errors) and `pnpm lint` (0 errors, 0 warnings) pass cleanly before committing/pushing.

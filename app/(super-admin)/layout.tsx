@@ -24,8 +24,8 @@ export default async function SuperAdminLayout({
       <AdminSidebar />
       <SidebarInset>
         <AdminHeader user={session.user} />
-        <main className="flex-1 overflow-y-auto overflow-x-hidden min-w-0 bg-muted/10 p-3 sm:p-4 md:p-6 lg:p-8">
-          <div className="mx-auto max-w-7xl w-full min-w-0">{children}</div>
+        <main className="flex-1 overflow-y-auto overflow-x-hidden min-w-0 bg-muted/10 p-3 sm:p-4 md:p-6">
+          <div className="mx-auto w-full min-w-0">{children}</div>
         </main>
       </SidebarInset>
     </SidebarProvider>

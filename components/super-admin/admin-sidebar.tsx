@@ -84,7 +84,7 @@ export function AdminSidebar({ ...props }: React.ComponentProps<typeof Sidebar>)
                   className={cn(
                     "rounded-xl font-medium",
                     pathname === "/super-admin" &&
-                      "bg-primary text-primary-foreground hover:bg-primary hover:text-primary-foreground"
+                    "bg-primary text-primary-foreground hover:bg-primary hover:text-primary-foreground"
                   )}
                 >
                   <Link href="/super-admin">
@@ -101,7 +101,7 @@ export function AdminSidebar({ ...props }: React.ComponentProps<typeof Sidebar>)
                   className={cn(
                     "rounded-xl font-medium",
                     pathname.startsWith("/super-admin/companies") &&
-                      "bg-primary text-primary-foreground hover:bg-primary hover:text-primary-foreground"
+                    "bg-primary text-primary-foreground hover:bg-primary hover:text-primary-foreground"
                   )}
                 >
                   <Link href="/super-admin/companies">
@@ -152,7 +152,7 @@ export function AdminSidebar({ ...props }: React.ComponentProps<typeof Sidebar>)
                           className={cn(
                             "rounded-lg text-xs",
                             pathname === "/super-admin/plans" &&
-                              "bg-primary text-primary-foreground font-semibold hover:bg-primary hover:text-primary-foreground"
+                            "bg-primary text-primary-foreground font-semibold hover:bg-primary hover:text-primary-foreground"
                           )}
                         >
                           <Link href="/super-admin/plans">
@@ -169,7 +169,7 @@ export function AdminSidebar({ ...props }: React.ComponentProps<typeof Sidebar>)
                           className={cn(
                             "rounded-lg text-xs",
                             pathname.startsWith("/super-admin/coupons") &&
-                              "bg-primary text-primary-foreground font-semibold hover:bg-primary hover:text-primary-foreground"
+                            "bg-primary text-primary-foreground font-semibold hover:bg-primary hover:text-primary-foreground"
                           )}
                         >
                           <Link href="/super-admin/coupons">
@@ -186,7 +186,7 @@ export function AdminSidebar({ ...props }: React.ComponentProps<typeof Sidebar>)
                           className={cn(
                             "rounded-lg text-xs",
                             pathname === "/super-admin/orders" &&
-                              "bg-primary text-primary-foreground font-semibold hover:bg-primary hover:text-primary-foreground"
+                            "bg-primary text-primary-foreground font-semibold hover:bg-primary hover:text-primary-foreground"
                           )}
                         >
                           <Link href="/super-admin/orders">
@@ -266,7 +266,7 @@ export function AdminSidebar({ ...props }: React.ComponentProps<typeof Sidebar>)
                   className={cn(
                     "rounded-xl font-medium",
                     pathname.startsWith("/super-admin/settings") &&
-                      "bg-primary text-primary-foreground hover:bg-primary hover:text-primary-foreground"
+                    "bg-primary text-primary-foreground hover:bg-primary hover:text-primary-foreground"
                   )}
                 >
                   <Link href="/super-admin/settings">
