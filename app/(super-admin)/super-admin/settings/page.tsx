@@ -50,7 +50,7 @@ export default function SettingsPage() {
 
         <Card className="rounded-2xl border-border bg-card p-6 shadow-xs">
           <CardHeader className="p-0 pb-4">
-            <div className="flex items-center gap-2 text-emerald-600 dark:text-emerald-400 font-semibold">
+            <div className="flex items-center gap-2 text-emerald-600 font-semibold">
               <IconShieldCheck size={18} />
               <span>Security & Infrastructure</span>
             </div>
