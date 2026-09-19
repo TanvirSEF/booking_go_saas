@@ -628,3 +628,61 @@ export async function getCompanyBusinessesAction(): Promise<BusinessActionResult
     return { success: false, error: msg };
   }
 }
+
+/**
+ * Tenant action: Switch the active business branch context for the logged-in user.
+ */
+export async function switchActiveBusinessAction(
+  businessId: string
+): Promise<BusinessActionResult<{ activeBusinessId: string; name: string; slug: string }>> {
+  try {
+    const session = await auth();
+    if (!session?.user?.id) {
+      return { success: false, error: 'Unauthorized. Please log in.' };
+    }
+
+    if (!Types.ObjectId.isValid(businessId)) {
+      return { success: false, error: 'Invalid business ID format.' };
+    }
+
+    await connectToDatabase();
+    const companyId = session.user.companyId || session.user.id;
+
+    const business = await Business.findOne({
+      _id: new Types.ObjectId(businessId),
+      companyId: new Types.ObjectId(companyId),
+    }).lean();
+
+    if (!business) {
+      return { success: false, error: 'Business branch not found or access denied.' };
+    }
+
+    await User.updateOne(
+      { _id: new Types.ObjectId(session.user.id) },
+      { $set: { activeBusinessId: business._id } }
+    );
+
+    safeRevalidate([
+      '/dashboard',
+      '/dashboard/business',
+      '/dashboard/appointments',
+      '/dashboard/settings',
+      '/dashboard/staff',
+      '/dashboard/services/catalog',
+      '/dashboard/locations',
+    ]);
+
+    return {
+      success: true,
+      message: `Active branch switched to ${business.name}.`,
+      data: {
+        activeBusinessId: String(business._id),
+        name: business.name,
+        slug: business.slug,
+      },
+    };
+  } catch (error) {
+    const message = error instanceof Error ? error.message : 'Failed to switch active business.';
+    return { success: false, error: message };
+  }
+}

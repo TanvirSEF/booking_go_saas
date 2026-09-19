@@ -4,7 +4,6 @@ import Link from "next/link";
 import { signOut } from "next-auth/react";
 import { useTheme } from "next-themes";
 import {
-  IconBuildingStore,
   IconChevronDown,
   IconLogout,
   IconUser,
@@ -24,6 +23,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { AnimatedThemeToggler } from "@/components/ui/animated-theme-toggler";
 import { NotificationBell } from "@/components/dashboard/notification-bell";
+import { BusinessSwitcher } from "@/components/dashboard/business-switcher";
 
 interface CompanyHeaderProps {
   user?: {
@@ -45,10 +45,7 @@ export function CompanyHeader({ user, businessName, businessSlug }: CompanyHeade
         <SidebarTrigger className="-ml-1 shrink-0" />
         <Separator orientation="vertical" className="mr-1 sm:mr-2 h-4 shrink-0" />
         
-        <div className="flex items-center gap-1.5 rounded-lg border border-border/60 bg-muted/40 px-2.5 py-1 text-xs font-semibold text-foreground">
-          <IconBuildingStore size={15} className="text-primary shrink-0" />
-          <span className="truncate max-w-[120px] sm:max-w-[180px]">{businessName || "My Business"}</span>
-        </div>
+        <BusinessSwitcher activeBusinessName={businessName} activeBusinessSlug={businessSlug} />
 
         {businessSlug && (
           <Button asChild variant="ghost" size="sm" className="hidden sm:inline-flex text-xs text-muted-foreground hover:text-primary">
