@@ -91,9 +91,9 @@ export function AdminTopbar({ user }: AdminTopbarProps) {
             </DropdownMenuLabel>
             <DropdownMenuSeparator />
             <DropdownMenuItem asChild className="cursor-pointer rounded-xl">
-              <Link href="/profile" className="flex items-center gap-2">
+              <Link href="/super-admin/profile" className="flex items-center gap-2">
                 <IconUser size={16} />
-                <span>/profile</span>
+                <span>Profile</span>
               </Link>
             </DropdownMenuItem>
             <DropdownMenuSeparator />

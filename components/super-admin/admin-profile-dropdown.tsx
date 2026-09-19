@@ -64,9 +64,9 @@ export function AdminProfileDropdown({ user }: AdminProfileDropdownProps) {
         </DropdownMenuLabel>
         <DropdownMenuSeparator />
         <DropdownMenuItem asChild className="cursor-pointer rounded-lg text-xs">
-          <Link href="/profile" className="flex items-center gap-2">
+          <Link href="/super-admin/profile" className="flex items-center gap-2">
             <IconUser size={15} />
-            <span>/profile</span>
+            <span>Profile</span>
           </Link>
         </DropdownMenuItem>
         <DropdownMenuSeparator />
