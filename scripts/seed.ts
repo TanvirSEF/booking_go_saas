@@ -385,8 +385,8 @@ async function seed() {
       businessId: business._id,
       customerId: customer._id,
       customerType: 'existing-user',
-      name: 'Alex Rivera',
-      email: 'customer@example.com',
+      name: 'John Doe',
+      email: 'john.doe@example.com',
       contact: '+1 555-0188',
       locationId: location._id,
       serviceId: haircutService._id,
@@ -418,8 +418,8 @@ async function seed() {
   } else {
     sampleAppointment.customerId = customer._id;
     sampleAppointment.customerType = 'existing-user';
-    sampleAppointment.email = 'customer@example.com';
-    sampleAppointment.name = 'Alex Rivera';
+    sampleAppointment.email = 'john.doe@example.com';
+    sampleAppointment.name = 'John Doe';
     sampleAppointment.contact = '+1 555-0188';
     await sampleAppointment.save();
   }
