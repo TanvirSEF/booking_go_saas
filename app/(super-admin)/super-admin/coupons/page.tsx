@@ -1,5 +1,5 @@
-import { redirect } from "next/navigation";
-import { auth } from "@/auth";
+import { requireRole } from "@/lib/guards";
+import { ACCESS } from "@/lib/roles";
 import { connectToDatabase } from "@/lib/db";
 import { Coupon } from "@/models/Coupon";
 import { CouponDataTable } from "@/components/super-admin/coupon-data-table";
@@ -12,15 +12,7 @@ export const metadata = {
 export const revalidate = 0;
 
 export default async function CouponsPage() {
-  const session = await auth();
-
-  if (!session?.user) {
-    redirect("/login?callbackUrl=/super-admin/coupons");
-  }
-
-  if (session.user.role !== "super admin") {
-    redirect("/dashboard");
-  }
+  await requireRole(ACCESS.superAdmin, "/super-admin/coupons");
 
   await connectToDatabase();
 

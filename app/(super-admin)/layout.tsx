@@ -1,5 +1,5 @@
-import { redirect } from "next/navigation";
-import { auth } from "@/auth";
+import { requireRole } from "@/lib/guards";
+import { ACCESS } from "@/lib/roles";
 import { SidebarProvider, SidebarInset } from "@/components/ui/sidebar";
 import { AdminSidebar } from "@/components/super-admin/admin-sidebar";
 import { AdminHeader } from "@/components/super-admin/admin-header";
@@ -9,15 +9,7 @@ export default async function SuperAdminLayout({
 }: Readonly<{
   children: React.ReactNode;
 }>) {
-  const session = await auth();
-
-  if (!session?.user) {
-    redirect("/login?callbackUrl=/super-admin");
-  }
-
-  if (session.user.role !== "super admin") {
-    redirect("/dashboard");
-  }
+  const session = await requireRole(ACCESS.superAdmin, "/super-admin");
 
   return (
     <SidebarProvider>
