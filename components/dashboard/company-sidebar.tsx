@@ -14,7 +14,11 @@ import {
   IconLayoutDashboard,
   IconMapPin,
   IconScissors,
+  IconSettings,
   IconSparkles,
+  IconAdjustmentsHorizontal,
+  IconArticle,
+  IconMail,
   IconUsers,
   IconUsersGroup,
 } from "@tabler/icons-react";
@@ -119,6 +123,11 @@ export const companyNavigationData: SidebarGroupData[] = [
         url: "/dashboard/customers",
         icon: IconUsersGroup,
       },
+      {
+        title: "Customer Inquiries",
+        url: "/dashboard/contacts",
+        icon: IconMail,
+      },
     ],
   },
   {
@@ -138,6 +147,31 @@ export const companyNavigationData: SidebarGroupData[] = [
         title: "Custom Fields",
         url: "/dashboard/custom-fields",
         icon: IconForms,
+      },
+      {
+        title: "Custom Statuses",
+        url: "/dashboard/custom-status",
+        icon: IconAdjustmentsHorizontal,
+      },
+    ],
+  },
+  {
+    group: "Marketing & Growth",
+    items: [
+      {
+        title: "Blog Articles",
+        url: "/dashboard/blog",
+        icon: IconArticle,
+      },
+    ],
+  },
+  {
+    group: "Settings",
+    items: [
+      {
+        title: "Company Settings",
+        url: "/dashboard/settings",
+        icon: IconSettings,
       },
     ],
   },
