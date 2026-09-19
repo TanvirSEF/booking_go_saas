@@ -19,6 +19,7 @@ import {
   IconAdjustmentsHorizontal,
   IconArticle,
   IconMail,
+  IconStar,
   IconUsers,
   IconUsersGroup,
 } from "@tabler/icons-react";
@@ -167,6 +168,11 @@ export const companyNavigationData: SidebarGroupData[] = [
         title: "Subscribers",
         url: "/dashboard/subscribers",
         icon: IconMail,
+      },
+      {
+        title: "Testimonials",
+        url: "/dashboard/testimonials",
+        icon: IconStar,
       },
     ],
   },

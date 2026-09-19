@@ -185,6 +185,7 @@ export async function createTestimonialAction(
       order: nextOrder,
     });
 
+    revalidatePath('/dashboard/testimonials');
     revalidatePath('/testimonials');
     revalidatePath('/appointments');
 
@@ -241,6 +242,7 @@ export async function updateTestimonialAction(
 
     await testimonial.save();
 
+    revalidatePath('/dashboard/testimonials');
     revalidatePath('/testimonials');
     revalidatePath('/appointments');
 
@@ -290,6 +292,7 @@ export async function toggleTestimonialStatusAction(
     testimonial.isActive = !testimonial.isActive;
     await testimonial.save();
 
+    revalidatePath('/dashboard/testimonials');
     revalidatePath('/testimonials');
     revalidatePath('/appointments');
 
@@ -326,6 +329,7 @@ export async function deleteTestimonialAction(
       return { success: false, error: 'Testimonial not found or already removed.' };
     }
 
+    revalidatePath('/dashboard/testimonials');
     revalidatePath('/testimonials');
     revalidatePath('/appointments');
 
@@ -368,6 +372,7 @@ export async function reorderTestimonialsAction(
       await Testimonial.bulkWrite(bulkOps);
     }
 
+    revalidatePath('/dashboard/testimonials');
     revalidatePath('/testimonials');
     revalidatePath('/appointments');
 
