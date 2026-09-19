@@ -23,6 +23,7 @@ import {
   IconStar,
   IconUsers,
   IconUsersGroup,
+  IconCreditCard,
 } from "@tabler/icons-react";
 import {
   Sidebar,
@@ -189,6 +190,11 @@ export const companyNavigationData: SidebarGroupData[] = [
         title: "Company Settings",
         url: "/dashboard/settings",
         icon: IconSettings,
+      },
+      {
+        title: "Subscription & Billing",
+        url: "/dashboard/billing",
+        icon: IconCreditCard,
       },
       {
         title: "Security & Logins",

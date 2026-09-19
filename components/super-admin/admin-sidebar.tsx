@@ -13,6 +13,7 @@ import {
   IconTicket,
   IconReceipt,
   IconShieldLock,
+  IconBuildingBank,
 } from "@tabler/icons-react";
 import {
   Collapsible,
@@ -88,11 +89,23 @@ export const adminNavigationData: SidebarGroupData[] = [
             url: "/super-admin/coupons",
             icon: IconTicket,
           },
+        ],
+      },
+      {
+        title: "Orders & Transactions",
+        icon: IconReceipt,
+        items: [
+          {
+            title: "Bank Transfers",
+            url: "/super-admin/bank-transfers",
+            icon: IconBuildingBank,
+          },
           {
             title: "Orders & Transactions",
             url: "/super-admin/orders",
             icon: IconReceipt,
           },
+
         ],
       },
     ],

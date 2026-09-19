@@ -205,19 +205,54 @@ export async function getBankTransferRequestsAction(
     }
 
     if (params.search && params.search.trim()) {
-      const searchRegex = new RegExp(params.search.trim(), 'i');
-      query.$or = [
+      const sanitized = params.search.trim().replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+      const searchRegex = new RegExp(sanitized, 'i');
+
+      const [matchingOrders, matchingUsers, matchingPlans] = await Promise.all([
+        Order.find({ orderNumber: searchRegex }).select('_id').limit(500).lean(),
+        User.find({
+          $or: [{ name: searchRegex }, { email: searchRegex }],
+        })
+          .select('_id')
+          .limit(500)
+          .lean(),
+        Plan.find({ name: searchRegex }).select('_id').limit(100).lean(),
+      ]);
+
+      const orderIds = matchingOrders.map((o) => o._id);
+      const userIds = matchingUsers.map((u) => u._id);
+      const planIds = matchingPlans.map((p) => p._id);
+
+      const orConditions: Array<Record<string, unknown>> = [
         { transactionRef: searchRegex },
         { notes: searchRegex },
       ];
+
+      if (Types.ObjectId.isValid(params.search.trim())) {
+        orConditions.push({ _id: new Types.ObjectId(params.search.trim()) });
+      }
+
+      if (orderIds.length > 0) {
+        orConditions.push({ orderId: { $in: orderIds } });
+      }
+
+      if (userIds.length > 0) {
+        orConditions.push({ companyId: { $in: userIds } });
+      }
+
+      if (planIds.length > 0) {
+        orConditions.push({ planId: { $in: planIds } });
+      }
+
+      query.$or = orConditions;
     }
 
     const [items, total, pendingCount, approvedCount, rejectedCount] = await Promise.all([
       BankTransferPayment.find(query)
-        .populate('companyId', 'name email')
-        .populate('planId', 'name')
-        .populate('orderId', 'orderNumber')
-        .populate('reviewedBy', 'name')
+        .populate({ path: 'companyId', select: 'name email', strictPopulate: false })
+        .populate({ path: 'planId', select: 'name', strictPopulate: false })
+        .populate({ path: 'orderId', select: 'orderNumber', strictPopulate: false })
+        .populate({ path: 'reviewedBy', select: 'name', strictPopulate: false })
         .sort({ createdAt: -1 })
         .skip(skip)
         .limit(limit)
