@@ -163,6 +163,11 @@ export const companyNavigationData: SidebarGroupData[] = [
         url: "/dashboard/blog",
         icon: IconArticle,
       },
+      {
+        title: "Subscribers",
+        url: "/dashboard/subscribers",
+        icon: IconMail,
+      },
     ],
   },
   {
