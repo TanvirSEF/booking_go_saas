@@ -15,10 +15,12 @@ import {
   IconMapPin,
   IconScissors,
   IconSettings,
+  IconShieldLock,
   IconSparkles,
   IconAdjustmentsHorizontal,
   IconArticle,
   IconMail,
+  IconStar,
   IconUsers,
   IconUsersGroup,
 } from "@tabler/icons-react";
@@ -35,7 +37,6 @@ import {
   SidebarMenuSub,
   SidebarMenuSubButton,
   SidebarMenuSubItem,
-  SidebarRail,
 } from "@/components/ui/sidebar";
 import {
   Collapsible,
@@ -119,14 +120,20 @@ export const companyNavigationData: SidebarGroupData[] = [
         icon: IconUsers,
       },
       {
-        title: "Customers",
-        url: "/dashboard/customers",
-        icon: IconUsersGroup,
-      },
-      {
-        title: "Customer Inquiries",
-        url: "/dashboard/contacts",
-        icon: IconMail,
+        title: "Customer",
+        icon: IconUsers,
+        items: [
+          {
+            title: "Customers",
+            url: "/dashboard/customers",
+            icon: IconUsersGroup,
+          },
+          {
+            title: "Customer Inquiries",
+            url: "/dashboard/contacts",
+            icon: IconMail,
+          },
+        ],
       },
     ],
   },
@@ -163,6 +170,16 @@ export const companyNavigationData: SidebarGroupData[] = [
         url: "/dashboard/blog",
         icon: IconArticle,
       },
+      {
+        title: "Subscribers",
+        url: "/dashboard/subscribers",
+        icon: IconMail,
+      },
+      {
+        title: "Testimonials",
+        url: "/dashboard/testimonials",
+        icon: IconStar,
+      },
     ],
   },
   {
@@ -172,6 +189,11 @@ export const companyNavigationData: SidebarGroupData[] = [
         title: "Company Settings",
         url: "/dashboard/settings",
         icon: IconSettings,
+      },
+      {
+        title: "Security & Logins",
+        url: "/dashboard/security/logins",
+        icon: IconShieldLock,
       },
     ],
   },
@@ -242,7 +264,7 @@ export function CompanySidebar({ businessName, ...props }: CompanySidebarProps) 
                               className={cn(
                                 "w-full justify-between rounded-xl font-medium transition-colors cursor-pointer group-data-[collapsible=icon]:justify-center group-data-[collapsible=icon]:!p-0",
                                 isChildActive &&
-                                  "text-primary font-semibold hover:text-sidebar-accent-foreground"
+                                "text-primary font-semibold hover:text-sidebar-accent-foreground"
                               )}
                             >
                               <div className="flex items-center gap-2 group-data-[collapsible=icon]:gap-0 group-data-[collapsible=icon]:justify-center">
@@ -274,7 +296,7 @@ export function CompanySidebar({ businessName, ...props }: CompanySidebarProps) 
                                       className={cn(
                                         "rounded-lg text-xs font-medium transition-colors",
                                         isSubActive &&
-                                          "bg-primary text-primary-foreground font-semibold hover:bg-primary hover:text-primary-foreground shadow-xs"
+                                        "bg-primary text-primary-foreground font-semibold hover:bg-primary hover:text-primary-foreground shadow-xs"
                                       )}
                                     >
                                       <Link href={subItem.url}>
@@ -314,7 +336,7 @@ export function CompanySidebar({ businessName, ...props }: CompanySidebarProps) 
                         className={cn(
                           "rounded-xl font-medium transition-colors group-data-[collapsible=icon]:justify-center group-data-[collapsible=icon]:!p-0",
                           isActive &&
-                            "bg-primary text-primary-foreground hover:bg-primary hover:text-primary-foreground shadow-xs font-semibold"
+                          "bg-primary text-primary-foreground hover:bg-primary hover:text-primary-foreground shadow-xs font-semibold"
                         )}
                       >
                         <Link
@@ -336,7 +358,7 @@ export function CompanySidebar({ businessName, ...props }: CompanySidebarProps) 
         ))}
       </SidebarContent>
 
-      <SidebarRail />
+      {/* <SidebarRail /> */}
     </Sidebar>
   );
 }

@@ -293,6 +293,8 @@ export async function deleteLoginLogAction(
       return { success: false, error: 'Log not found or already deleted.' };
     }
 
+    revalidatePath('/dashboard/security/logins');
+    revalidatePath('/super-admin/security/logins');
     revalidatePath('/dashboard');
     revalidatePath('/super-admin');
 
@@ -326,6 +328,8 @@ export async function clearOldLoginLogsAction(
       loginAt: { $lt: cutoffDate },
     });
 
+    revalidatePath('/dashboard/security/logins');
+    revalidatePath('/super-admin/security/logins');
     revalidatePath('/super-admin');
 
     return {
