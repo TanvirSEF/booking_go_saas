@@ -1,7 +1,7 @@
 'use client';
 
-import React, { useState, useTransition } from 'react';
-import { useRouter, usePathname, useSearchParams } from 'next/navigation';
+import React, { useState } from 'react';
+import { useRouter, usePathname } from 'next/navigation';
 import {
   Table,
   TableBody,
@@ -22,26 +22,18 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select';
-import {
   IconDotsVertical,
   IconClock,
   IconCalendar,
   IconMail,
   IconPhone,
   IconRefresh,
-  IconChevronLeft,
-  IconChevronRight,
   IconCalendarOff,
   IconX,
   IconCircleCheck,
   IconRotateClockwise,
 } from '@tabler/icons-react';
+import { TablePaginationBar } from '@/components/shared/table-pagination-bar';
 import { AppointmentTableFilters, type StaffFilterOption } from './appointment-table-filters';
 import { AppointmentStatusDialog } from './appointment-status-dialog';
 import { AppointmentRescheduleDialog } from './appointment-reschedule-dialog';
@@ -98,34 +90,11 @@ export function AppointmentDataTable({
 }: AppointmentDataTableProps) {
   const router = useRouter();
   const pathname = usePathname();
-  const searchParams = useSearchParams();
-  const [isPending, startTransition] = useTransition();
 
   // Dialog states
   const [statusDialogApt, setStatusDialogApt] = useState<AppointmentListItem | null>(null);
   const [rescheduleDialogApt, setRescheduleDialogApt] = useState<AppointmentListItem | null>(null);
   const [cancelDialogApt, setCancelDialogApt] = useState<AppointmentListItem | null>(null);
-
-  const navigateToPage = (newPage: number) => {
-    if (newPage < 1 || (totalPages > 0 && newPage > totalPages) || newPage === page) return;
-    const params = new URLSearchParams(searchParams.toString());
-    params.set('page', String(newPage));
-    startTransition(() => {
-      router.push(`${pathname}?${params.toString()}`);
-    });
-  };
-
-  const changeLimit = (newLimit: string) => {
-    const params = new URLSearchParams(searchParams.toString());
-    params.set('limit', newLimit);
-    params.set('page', '1');
-    startTransition(() => {
-      router.push(`${pathname}?${params.toString()}`);
-    });
-  };
-
-  const startRecord = total === 0 ? 0 : (page - 1) * limit + 1;
-  const endRecord = Math.min(page * limit, total);
 
   return (
     <div className="space-y-4">
@@ -377,59 +346,13 @@ export function AppointmentDataTable({
         </div>
 
         {/* Server-Side Pagination & Record Counters */}
-        <div className="flex flex-col sm:flex-row items-center justify-between gap-3 px-4 py-3 border-t border-border bg-muted/20 text-xs text-muted-foreground">
-          <div className="flex items-center gap-2">
-            <span>
-              Showing <strong className="text-foreground">{startRecord}</strong> to{' '}
-              <strong className="text-foreground">{endRecord}</strong> of{' '}
-              <strong className="text-foreground">{total}</strong> appointments
-            </span>
-          </div>
-
-          <div className="flex items-center gap-4">
-            {/* Page Size Selector */}
-            <div className="flex items-center gap-1.5">
-              <span className="text-[11px] text-muted-foreground">Rows per page:</span>
-              <Select value={String(limit)} onValueChange={changeLimit}>
-                <SelectTrigger className="h-8 w-16 text-xs bg-background cursor-pointer">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="10">10</SelectItem>
-                  <SelectItem value="25">25</SelectItem>
-                  <SelectItem value="50">50</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-
-            {/* Prev / Next Pagination Buttons */}
-            <div className="flex items-center gap-1">
-              <Button
-                variant="outline"
-                size="icon"
-                className="size-8 cursor-pointer"
-                disabled={page <= 1 || isPending}
-                onClick={() => navigateToPage(page - 1)}
-                aria-label="Previous page"
-              >
-                <IconChevronLeft size={16} />
-              </Button>
-              <span className="text-xs font-medium px-1 text-foreground">
-                Page {page} of {Math.max(1, totalPages)}
-              </span>
-              <Button
-                variant="outline"
-                size="icon"
-                className="size-8 cursor-pointer"
-                disabled={page >= totalPages || isPending}
-                onClick={() => navigateToPage(page + 1)}
-                aria-label="Next page"
-              >
-                <IconChevronRight size={16} />
-              </Button>
-            </div>
-          </div>
-        </div>
+        <TablePaginationBar
+          total={total}
+          page={page}
+          limit={limit}
+          totalPages={totalPages}
+          noun="appointments"
+        />
       </div>
 
       {/* Status Change Dialog */}

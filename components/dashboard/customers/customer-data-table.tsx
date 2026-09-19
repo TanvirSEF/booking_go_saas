@@ -1,6 +1,7 @@
 'use client';
 
-import React, { useState, useTransition } from 'react';
+import React, { useState, useEffect, useTransition, useCallback } from 'react';
+import { useRouter, usePathname, useSearchParams } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
@@ -17,8 +18,10 @@ import { DeleteConfirmDialog } from '@/components/dashboard/services/delete-conf
 import { CustomerSpendBadge } from './customer-spend-badge';
 import { CustomerDetailsDrawer } from './customer-details-drawer';
 import { CreateCustomerSheet } from './create-customer-sheet';
+import { TablePaginationBar } from '@/components/shared/table-pagination-bar';
 import {
   IconSearch,
+  IconX,
   IconDownload,
   IconUserPlus,
   IconDotsVertical,
@@ -28,15 +31,13 @@ import {
   IconPhone,
   IconCalendar,
   IconUsers,
-  IconChevronLeft,
-  IconChevronRight,
   IconLoader2,
   IconCalendarEvent,
+  IconRotateClockwise,
 } from '@tabler/icons-react';
 import { toast } from 'sonner';
 import {
   deleteCompanyCustomerAction,
-  getCompanyCustomersAction,
 } from '@/actions/customer-crm';
 import { exportCustomersCsvAction } from '@/actions/export';
 import type { CustomerCRMItem } from '@/types/customer-crm';
@@ -44,6 +45,9 @@ import type { CustomerCRMItem } from '@/types/customer-crm';
 interface CustomerDataTableProps {
   initialCustomers: CustomerCRMItem[];
   totalRecords: number;
+  page?: number;
+  limit?: number;
+  search?: string;
   initialPage?: number;
   pageSize?: number;
 }
@@ -58,15 +62,32 @@ function getInitials(name: string): string {
 export function CustomerDataTable({
   initialCustomers,
   totalRecords,
+  page: propPage,
+  limit: propLimit,
+  search: propSearch = '',
   initialPage = 1,
-  pageSize = 15,
+  pageSize = 10,
 }: CustomerDataTableProps) {
+  const router = useRouter();
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
+  const [isPending, startTransition] = useTransition();
+
+  const activePage = propPage ?? initialPage;
+  const activeLimit = propLimit ?? pageSize;
+
   const [customers, setCustomers] = useState<CustomerCRMItem[]>(initialCustomers);
   const [total, setTotal] = useState(totalRecords);
-  const [currentPage, setCurrentPage] = useState(initialPage);
-  const [searchQuery, setSearchQuery] = useState('');
-  const [isSearching, startSearchTransition] = useTransition();
+  const [searchTerm, setSearchTerm] = useState(propSearch);
   const [isExporting, setIsExporting] = useState(false);
+
+  // Synchronize state when server re-renders with new props
+  const [prevInitialCustomers, setPrevInitialCustomers] = useState(initialCustomers);
+  if (initialCustomers !== prevInitialCustomers) {
+    setPrevInitialCustomers(initialCustomers);
+    setCustomers(initialCustomers);
+    setTotal(totalRecords);
+  }
 
   // Inspection Drawer state
   const [selectedCustomer, setSelectedCustomer] = useState<CustomerCRMItem | null>(null);
@@ -79,45 +100,43 @@ export function CustomerDataTable({
   const [customerToDelete, setCustomerToDelete] = useState<CustomerCRMItem | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
 
-  // Total pages
-  const totalPages = Math.max(1, Math.ceil(total / pageSize));
+  const updateFilters = useCallback(
+    (updates: Record<string, string | null>) => {
+      const params = new URLSearchParams(searchParams ? searchParams.toString() : '');
 
-  // Search & Pagination fetcher
-  const loadCustomers = (page: number, query: string) => {
-    startSearchTransition(async () => {
-      const res = await getCompanyCustomersAction({
-        page,
-        limit: pageSize,
-        search: query.trim(),
+      Object.entries(updates).forEach(([key, value]) => {
+        if (value && value.trim() !== '') {
+          params.set(key, value.trim());
+        } else {
+          params.delete(key);
+        }
       });
 
-      if (res.success && res.data) {
-        setCustomers(res.data.customers);
-        setTotal(res.data.total);
-        setCurrentPage(page);
-      } else {
-        toast.error(res.error || 'Failed to fetch customer list.');
-      }
-    });
-  };
+      params.set('page', '1');
 
-  const handleSearchChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const val = e.target.value;
-    setSearchQuery(val);
-    loadCustomers(1, val);
-  };
+      startTransition(() => {
+        router.push(`${pathname}?${params.toString()}`);
+      });
+    },
+    [searchParams, pathname, router]
+  );
 
-  const handlePageChange = (newPage: number) => {
-    if (newPage >= 1 && newPage <= totalPages && newPage !== currentPage) {
-      loadCustomers(newPage, searchQuery);
-    }
-  };
+  // Debounce search input
+  useEffect(() => {
+    if (searchTerm === propSearch) return;
+
+    const timeout = setTimeout(() => {
+      updateFilters({ search: searchTerm.trim() || null });
+    }, 350);
+
+    return () => clearTimeout(timeout);
+  }, [searchTerm, propSearch, updateFilters]);
 
   // CSV Export handler
   const handleExportCsv = async () => {
     setIsExporting(true);
     try {
-      const res = await exportCustomersCsvAction(searchQuery);
+      const res = await exportCustomersCsvAction(searchTerm);
       if (res.success && res.data) {
         // Trigger browser download via Blob
         const blob = new Blob([res.data], { type: 'text/csv;charset=utf-8;' });
@@ -181,12 +200,25 @@ export function CustomerDataTable({
             className="absolute left-3.5 top-1/2 -translate-y-1/2 text-muted-foreground pointer-events-none"
           />
           <Input
-            value={searchQuery}
-            onChange={handleSearchChange}
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
             placeholder="Search by name, email, or phone number..."
             className="!pl-10 pr-9 h-10 rounded-xl bg-background border-border text-xs focus-visible:ring-1 focus-visible:ring-primary"
           />
-          {isSearching && (
+          {searchTerm && (
+            <button
+              type="button"
+              onClick={() => {
+                setSearchTerm('');
+                updateFilters({ search: null });
+              }}
+              className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors cursor-pointer"
+              aria-label="Clear search"
+            >
+              <IconX size={16} />
+            </button>
+          )}
+          {isPending && !searchTerm && (
             <div className="absolute right-3 top-1/2 -translate-y-1/2">
               <IconLoader2 size={16} className="animate-spin text-primary" />
             </div>
@@ -199,7 +231,7 @@ export function CustomerDataTable({
             variant="outline"
             onClick={handleExportCsv}
             disabled={isExporting || total === 0}
-            className="rounded-xl text-xs font-semibold gap-2 border-border/80 bg-background hover:bg-muted"
+            className="rounded-xl text-xs font-semibold gap-2 border-border/80 bg-background hover:bg-muted cursor-pointer"
           >
             {isExporting ? (
               <IconLoader2 size={15} className="animate-spin text-primary" />
@@ -212,7 +244,7 @@ export function CustomerDataTable({
           <Button
             type="button"
             onClick={() => setIsAddDialogOpen(true)}
-            className="rounded-xl text-xs font-semibold gap-2 shadow-2xs"
+            className="rounded-xl text-xs font-semibold gap-2 shadow-2xs cursor-pointer"
           >
             <IconUserPlus size={15} />
             <span>Add Customer</span>
@@ -246,18 +278,30 @@ export function CustomerDataTable({
                       </div>
                       <div className="space-y-1.5 text-center">
                         <h3 className="font-bold text-base text-foreground">
-                          {searchQuery ? 'No matching customers found' : 'No customers recorded yet'}
+                          {searchTerm ? 'No matching customers found' : 'No customers recorded yet'}
                         </h3>
                         <p className="text-xs text-muted-foreground leading-relaxed">
-                          {searchQuery
-                            ? `Try clearing your search query "${searchQuery}" or search with different keywords.`
+                          {searchTerm
+                            ? `Try clearing your search query "${searchTerm}" or search with different keywords.`
                             : 'Add your first customer profile or allow customers to self-book online.'}
                         </p>
                       </div>
-                      {!searchQuery && (
+                      {searchTerm ? (
+                        <Button
+                          variant="outline"
+                          onClick={() => {
+                            setSearchTerm('');
+                            updateFilters({ search: null });
+                          }}
+                          className="rounded-xl text-xs font-semibold gap-1.5 mt-2 cursor-pointer"
+                        >
+                          <IconRotateClockwise size={15} />
+                          <span>Clear Search</span>
+                        </Button>
+                      ) : (
                         <Button
                           onClick={() => setIsAddDialogOpen(true)}
-                          className="rounded-xl text-xs font-semibold gap-1.5 mt-2 shadow-2xs"
+                          className="rounded-xl text-xs font-semibold gap-1.5 mt-2 shadow-2xs cursor-pointer"
                         >
                           <IconUserPlus size={15} />
                           <span>Add New Customer</span>
@@ -400,43 +444,13 @@ export function CustomerDataTable({
         </div>
 
         {/* Table Pagination Bar */}
-        {total > 0 && (
-          <div className="p-4 border-t border-border flex flex-col sm:flex-row items-center justify-between gap-3 text-xs text-muted-foreground">
-            <div>
-              Showing <span className="font-semibold text-foreground">{(currentPage - 1) * pageSize + 1}</span> to{' '}
-              <span className="font-semibold text-foreground">{Math.min(currentPage * pageSize, total)}</span> of{' '}
-              <span className="font-semibold text-foreground">{total}</span> customers
-            </div>
-
-            <div className="flex items-center gap-1.5">
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => handlePageChange(currentPage - 1)}
-                disabled={currentPage <= 1 || isSearching}
-                className="size-8 p-0 rounded-lg"
-              >
-                <IconChevronLeft size={15} />
-                <span className="sr-only">Previous Page</span>
-              </Button>
-
-              <div className="text-xs font-semibold px-2">
-                Page {currentPage} of {totalPages}
-              </div>
-
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => handlePageChange(currentPage + 1)}
-                disabled={currentPage >= totalPages || isSearching}
-                className="size-8 p-0 rounded-lg"
-              >
-                <IconChevronRight size={15} />
-                <span className="sr-only">Next Page</span>
-              </Button>
-            </div>
-          </div>
-        )}
+        <TablePaginationBar
+          total={total}
+          page={activePage}
+          limit={activeLimit}
+          noun="customers"
+          syncToUrl={true}
+        />
       </div>
 
       {/* Customer Appointment History Drawer */}

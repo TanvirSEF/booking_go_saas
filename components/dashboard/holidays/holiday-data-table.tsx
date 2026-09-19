@@ -1,29 +1,22 @@
 'use client';
 
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect, useTransition, useCallback } from 'react';
+import { useRouter, usePathname, useSearchParams } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select';
 import { DeleteConfirmDialog } from '@/components/dashboard/services/delete-confirm-dialog';
+import { TablePaginationBar } from '@/components/shared/table-pagination-bar';
 import {
   IconCalendarEvent,
   IconTrash,
   IconSearch,
+  IconX,
   IconClock,
   IconCalendarTime,
   IconCalendarRepeat,
-  IconChevronLeft,
-  IconChevronRight,
-  IconChevronsLeft,
-  IconChevronsRight,
   IconCalendar,
+  IconRotateClockwise,
 } from '@tabler/icons-react';
 import { toast } from 'sonner';
 import {
@@ -190,12 +183,51 @@ export function HolidayDataTable({
   holidays,
   onHolidaysChange,
 }: HolidayDataTableProps) {
-  const [searchQuery, setSearchQuery] = useState('');
-  const [filterType, setFilterType] = useState<'all' | 'upcoming' | 'past'>('all');
-  const [currentPage, setCurrentPage] = useState(1);
-  const [pageSize, setPageSize] = useState<number>(10);
+  const router = useRouter();
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
+  const [, startTransition] = useTransition();
+
+  const urlSearch = searchParams?.get('search') || '';
+  const urlType = (searchParams?.get('type') as 'all' | 'upcoming' | 'past') || 'all';
+  const page = Math.max(1, parseInt(searchParams?.get('page') || '1', 10) || 1);
+  const limit = Math.max(1, parseInt(searchParams?.get('limit') || '10', 10) || 10);
+
+  const [searchTerm, setSearchTerm] = useState(urlSearch);
   const [selectedGroup, setSelectedGroup] = useState<GroupedHolidayItem | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
+
+  const updateFilters = useCallback(
+    (updates: Record<string, string | null>) => {
+      const params = new URLSearchParams(searchParams ? searchParams.toString() : '');
+
+      Object.entries(updates).forEach(([key, value]) => {
+        if (value && value !== 'all') {
+          params.set(key, value.trim());
+        } else {
+          params.delete(key);
+        }
+      });
+
+      params.set('page', '1');
+
+      startTransition(() => {
+        router.push(`${pathname}?${params.toString()}`);
+      });
+    },
+    [searchParams, pathname, router]
+  );
+
+  // Debounce search input
+  useEffect(() => {
+    if (searchTerm === urlSearch) return;
+
+    const timeout = setTimeout(() => {
+      updateFilters({ search: searchTerm.trim() || null });
+    }, 350);
+
+    return () => clearTimeout(timeout);
+  }, [searchTerm, urlSearch, updateFilters]);
 
   // Group consecutive holiday dates into clean range items
   const groupedItems = useMemo(() => groupHolidays(holidays), [holidays]);
@@ -205,12 +237,12 @@ export function HolidayDataTable({
     return groupedItems.filter((item) => {
       const remaining = calculateDaysRemaining(item.startDate, item.endDate);
 
-      if (filterType === 'upcoming' && remaining.isPast) return false;
-      if (filterType === 'past' && !remaining.isPast) return false;
+      if (urlType === 'upcoming' && remaining.isPast) return false;
+      if (urlType === 'past' && !remaining.isPast) return false;
 
-      if (!searchQuery.trim()) return true;
+      if (!urlSearch.trim()) return true;
 
-      const q = searchQuery.toLowerCase();
+      const q = urlSearch.toLowerCase();
       const startFmt = formatDateDisplay(item.startDate).toLowerCase();
       const endFmt = formatDateDisplay(item.endDate).toLowerCase();
       return (
@@ -221,17 +253,17 @@ export function HolidayDataTable({
         endFmt.includes(q)
       );
     });
-  }, [groupedItems, searchQuery, filterType]);
+  }, [groupedItems, urlSearch, urlType]);
 
   // Pagination
   const totalItems = filtered.length;
-  const totalPages = Math.max(1, Math.ceil(totalItems / pageSize));
-  const safeCurrentPage = Math.min(Math.max(1, currentPage), totalPages);
+  const totalPages = Math.max(1, Math.ceil(totalItems / limit));
+  const safeCurrentPage = Math.min(page, totalPages);
 
   const paginated = useMemo(() => {
-    const start = (safeCurrentPage - 1) * pageSize;
-    return filtered.slice(start, start + pageSize);
-  }, [filtered, safeCurrentPage, pageSize]);
+    const start = (safeCurrentPage - 1) * limit;
+    return filtered.slice(start, start + limit);
+  }, [filtered, safeCurrentPage, limit]);
 
   const handleDeleteConfirm = async () => {
     if (!selectedGroup) return;
@@ -271,18 +303,28 @@ export function HolidayDataTable({
         <div className="relative flex-1 max-w-sm">
           <IconSearch
             size={16}
-            className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground"
+            className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground pointer-events-none"
           />
           <Input
             type="text"
             placeholder="Search by holiday name, date or month..."
-            value={searchQuery}
-            onChange={(e) => {
-              setSearchQuery(e.target.value);
-              setCurrentPage(1);
-            }}
-            className="h-9 pl-9 pr-3 text-xs rounded-xl bg-card border-border shadow-2xs"
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            className="h-10 pl-9 pr-8 text-xs rounded-xl bg-card border-border shadow-2xs"
           />
+          {searchTerm && (
+            <button
+              type="button"
+              onClick={() => {
+                setSearchTerm('');
+                updateFilters({ search: null });
+              }}
+              className="absolute right-2.5 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground cursor-pointer"
+              aria-label="Clear search"
+            >
+              <IconX size={15} />
+            </button>
+          )}
         </div>
 
         <div className="flex items-center gap-1.5 p-1 rounded-xl bg-muted/60 border border-border shrink-0 self-start sm:self-auto">
@@ -290,12 +332,9 @@ export function HolidayDataTable({
             <button
               key={type}
               type="button"
-              onClick={() => {
-                setFilterType(type);
-                setCurrentPage(1);
-              }}
+              onClick={() => updateFilters({ type: type === 'all' ? null : type })}
               className={`py-1 px-3 rounded-lg text-xs font-semibold capitalize transition-all cursor-pointer ${
-                filterType === type
+                urlType === type
                   ? 'bg-background text-foreground shadow-2xs'
                   : 'text-muted-foreground hover:text-foreground'
               }`}
@@ -321,14 +360,37 @@ export function HolidayDataTable({
             <tbody className="divide-y divide-border text-xs">
               {paginated.length === 0 ? (
                 <tr>
-                  <td colSpan={4} className="py-12 text-center text-muted-foreground">
-                    <IconCalendarEvent className="size-8 mx-auto mb-2 opacity-30" />
-                    <p className="font-semibold text-sm">No holidays found</p>
-                    <p className="text-[11px] mt-0.5">
-                      {searchQuery
-                        ? 'Try clearing your search query or filters.'
-                        : 'Click "Add Holiday" to register your first off-day.'}
-                    </p>
+                  <td colSpan={4} className="h-48 text-center">
+                    <div className="flex flex-col items-center justify-center text-muted-foreground space-y-3 py-6">
+                      <div className="size-12 rounded-full bg-muted/60 flex items-center justify-center text-muted-foreground border border-border/60">
+                        <IconCalendarEvent size={24} />
+                      </div>
+                      <div className="space-y-1 text-center">
+                        <p className="font-semibold text-sm text-foreground">No holidays found</p>
+                        <p className="text-xs text-muted-foreground max-w-xs">
+                          {urlSearch || urlType !== 'all'
+                            ? 'No holidays match your search or filter. Try clearing your filters.'
+                            : 'Click "Add Holiday" to register your first off-day.'}
+                        </p>
+                      </div>
+                      {(urlSearch || urlType !== 'all') && (
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          onClick={() => {
+                            setSearchTerm('');
+                            startTransition(() => {
+                              router.push(pathname);
+                            });
+                          }}
+                          className="rounded-xl text-xs gap-1.5 mt-1 cursor-pointer"
+                        >
+                          <IconRotateClockwise size={14} />
+                          <span>Reset Filters</span>
+                        </Button>
+                      )}
+                    </div>
                   </td>
                 </tr>
               ) : (
@@ -444,98 +506,14 @@ export function HolidayDataTable({
           </table>
         </div>
 
-        {/* Full Interactive Pagination Footer */}
-        {totalItems > 0 && (
-          <div className="flex flex-col sm:flex-row items-center justify-between gap-3 px-4 sm:px-6 py-3 border-t border-border bg-muted/20 text-xs text-muted-foreground">
-            {/* Rows per page selector & counts */}
-            <div className="flex items-center gap-3">
-              <span className="text-xs">Rows per page:</span>
-              <Select
-                value={String(pageSize)}
-                onValueChange={(val) => {
-                  setPageSize(Number(val));
-                  setCurrentPage(1);
-                }}
-              >
-                <SelectTrigger className="h-8 w-16 rounded-lg text-xs bg-background">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent data-theme="company">
-                  <SelectItem value="5">5</SelectItem>
-                  <SelectItem value="10">10</SelectItem>
-                  <SelectItem value="20">20</SelectItem>
-                  <SelectItem value="50">50</SelectItem>
-                </SelectContent>
-              </Select>
-              <span>
-                Showing{' '}
-                <strong className="text-foreground">
-                  {(safeCurrentPage - 1) * pageSize + 1}
-                </strong>{' '}
-                to{' '}
-                <strong className="text-foreground">
-                  {Math.min(safeCurrentPage * pageSize, totalItems)}
-                </strong>{' '}
-                of <strong className="text-foreground">{totalItems}</strong> entries
-                {holidays.length !== totalItems && (
-                  <span className="text-muted-foreground/75 ml-1">
-                    ({holidays.length} total holiday dates)
-                  </span>
-                )}
-              </span>
-            </div>
-
-            {/* Navigation buttons */}
-            <div className="flex items-center gap-1.5">
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => setCurrentPage(1)}
-                disabled={safeCurrentPage <= 1}
-                className="size-8 p-0 rounded-lg"
-                title="First Page"
-              >
-                <IconChevronsLeft size={16} />
-              </Button>
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
-                disabled={safeCurrentPage <= 1}
-                className="size-8 p-0 rounded-lg"
-                title="Previous Page"
-              >
-                <IconChevronLeft size={16} />
-              </Button>
-
-              <div className="px-2 text-xs text-muted-foreground font-medium">
-                Page <span className="text-foreground font-semibold">{safeCurrentPage}</span> of{' '}
-                <span className="text-foreground font-semibold">{totalPages}</span>
-              </div>
-
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
-                disabled={safeCurrentPage >= totalPages}
-                className="size-8 p-0 rounded-lg"
-                title="Next Page"
-              >
-                <IconChevronRight size={16} />
-              </Button>
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => setCurrentPage(totalPages)}
-                disabled={safeCurrentPage >= totalPages}
-                className="size-8 p-0 rounded-lg"
-                title="Last Page"
-              >
-                <IconChevronsRight size={16} />
-              </Button>
-            </div>
-          </div>
-        )}
+        {/* Unified Table Pagination Bar */}
+        <TablePaginationBar
+          total={totalItems}
+          page={safeCurrentPage}
+          limit={limit}
+          noun="holidays"
+          syncToUrl={true}
+        />
       </div>
 
       {/* Delete Confirmation Modal */}

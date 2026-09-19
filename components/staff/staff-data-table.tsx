@@ -1,6 +1,7 @@
 'use client';
 
-import React, { useMemo, useState } from 'react';
+import React, { useMemo, useState, useEffect, useTransition, useCallback } from 'react';
+import { useRouter, usePathname, useSearchParams } from 'next/navigation';
 import {
   Table,
   TableBody,
@@ -31,10 +32,6 @@ import {
 import { toast } from 'sonner';
 import {
   IconAlertCircle,
-  IconChevronLeft,
-  IconChevronRight,
-  IconChevronsLeft,
-  IconChevronsRight,
   IconDotsVertical,
   IconEdit,
   IconMail,
@@ -46,6 +43,8 @@ import {
   IconTrash,
   IconUserCheck,
   IconUsers,
+  IconX,
+  IconRotateClockwise,
 } from '@tabler/icons-react';
 import {
   toggleStaffStatusAction,
@@ -54,6 +53,7 @@ import {
 import type { StaffMemberDTO, StaffPlanQuota } from '@/types/staff';
 import { StaffSheet } from './staff-sheet';
 import { DeleteConfirmDialog } from '@/components/dashboard/services/delete-confirm-dialog';
+import { TablePaginationBar } from '@/components/shared/table-pagination-bar';
 import type { TagOption } from './staff-tag-picker';
 
 export interface StaffDataTableProps {
@@ -69,14 +69,19 @@ export function StaffDataTable({
   serviceOptions,
   planQuota,
 }: StaffDataTableProps) {
-  const [staffList, setStaffList] = useState<StaffMemberDTO[]>(initialStaff);
-  const [searchQuery, setSearchQuery] = useState('');
-  const [filterLocationId, setFilterLocationId] = useState<string>('all');
-  const [filterStatus, setFilterStatus] = useState<'all' | 'active' | 'inactive'>('all');
+  const router = useRouter();
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
+  const [isPending, startTransition] = useTransition();
 
-  // Pagination state
-  const [currentPage, setCurrentPage] = useState(1);
-  const [pageSize, setPageSize] = useState(10);
+  const urlSearch = searchParams?.get('search') || '';
+  const urlLocation = searchParams?.get('location') || 'all';
+  const urlStatus = (searchParams?.get('status') as 'all' | 'active' | 'inactive') || 'all';
+  const page = Math.max(1, parseInt(searchParams?.get('page') || '1', 10) || 1);
+  const limit = Math.max(1, parseInt(searchParams?.get('limit') || '10', 10) || 10);
+
+  const [staffList, setStaffList] = useState<StaffMemberDTO[]>(initialStaff);
+  const [searchTerm, setSearchTerm] = useState(urlSearch);
 
   // Dialog states
   const [isDialogOpen, setIsDialogOpen] = useState(false);
@@ -85,9 +90,41 @@ export function StaffDataTable({
   const [isDeleting, setIsDeleting] = useState(false);
   const [actionLoadingId, setActionLoadingId] = useState<string | null>(null);
 
+  const updateFilters = useCallback(
+    (updates: Record<string, string | null>) => {
+      const params = new URLSearchParams(searchParams ? searchParams.toString() : '');
+
+      Object.entries(updates).forEach(([key, value]) => {
+        if (value && value !== 'all') {
+          params.set(key, value.trim());
+        } else {
+          params.delete(key);
+        }
+      });
+
+      params.set('page', '1');
+
+      startTransition(() => {
+        router.push(`${pathname}?${params.toString()}`);
+      });
+    },
+    [searchParams, pathname, router]
+  );
+
+  // Debounce search term changes
+  useEffect(() => {
+    if (searchTerm === urlSearch) return;
+
+    const timeout = setTimeout(() => {
+      updateFilters({ search: searchTerm.trim() || null });
+    }, 350);
+
+    return () => clearTimeout(timeout);
+  }, [searchTerm, urlSearch, updateFilters]);
+
   // Filter staff records
   const filteredStaff = useMemo(() => {
-    const q = searchQuery.toLowerCase().trim();
+    const q = urlSearch.toLowerCase().trim();
 
     return staffList.filter((stf) => {
       // Search filter
@@ -102,27 +139,27 @@ export function StaffDataTable({
       if (!matchesSearch) return false;
 
       // Location filter
-      if (filterLocationId !== 'all') {
-        if (!stf.locationIds.includes(filterLocationId)) return false;
+      if (urlLocation !== 'all') {
+        if (!stf.locationIds.includes(urlLocation)) return false;
       }
 
       // Status filter
-      if (filterStatus === 'active' && !stf.isActive) return false;
-      if (filterStatus === 'inactive' && stf.isActive) return false;
+      if (urlStatus === 'active' && !stf.isActive) return false;
+      if (urlStatus === 'inactive' && stf.isActive) return false;
 
       return true;
     });
-  }, [staffList, searchQuery, filterLocationId, filterStatus]);
+  }, [staffList, urlSearch, urlLocation, urlStatus]);
 
   // Pagination math
   const totalItems = filteredStaff.length;
-  const totalPages = Math.max(1, Math.ceil(totalItems / pageSize));
-  const safeCurrentPage = Math.min(currentPage, totalPages);
+  const totalPages = Math.max(1, Math.ceil(totalItems / limit));
+  const safeCurrentPage = Math.min(page, totalPages);
 
   const paginatedStaff = useMemo(() => {
-    const start = (safeCurrentPage - 1) * pageSize;
-    return filteredStaff.slice(start, start + pageSize);
-  }, [filteredStaff, safeCurrentPage, pageSize]);
+    const start = (safeCurrentPage - 1) * limit;
+    return filteredStaff.slice(start, start + limit);
+  }, [filteredStaff, safeCurrentPage, limit]);
 
   // Handlers
   const handleOpenAdd = () => {
@@ -214,28 +251,37 @@ export function StaffDataTable({
           <div className="relative w-full sm:w-72">
             <IconSearch
               size={16}
-              className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground"
+              className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground pointer-events-none"
             />
             <Input
               placeholder="Search specialists, email, service..."
-              value={searchQuery}
-              onChange={(e) => {
-                setSearchQuery(e.target.value);
-                setCurrentPage(1);
-              }}
-              className="pl-9 h-10 rounded-xl text-xs bg-card"
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              className="pl-9 pr-8 h-10 rounded-xl text-xs bg-card"
             />
+            {searchTerm && (
+              <button
+                type="button"
+                onClick={() => {
+                  setSearchTerm('');
+                  updateFilters({ search: null });
+                }}
+                className="absolute right-2.5 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground cursor-pointer"
+                aria-label="Clear search"
+              >
+                <IconX size={15} />
+              </button>
+            )}
           </div>
 
           {/* Location filter */}
           <Select
-            value={filterLocationId}
+            value={urlLocation}
             onValueChange={(val) => {
-              setFilterLocationId(val);
-              setCurrentPage(1);
+              updateFilters({ location: val === 'all' ? null : val });
             }}
           >
-            <SelectTrigger className="h-10 w-44 rounded-xl text-xs bg-card">
+            <SelectTrigger className="h-10 w-44 rounded-xl text-xs bg-card cursor-pointer">
               <SelectValue placeholder="All Branches" />
             </SelectTrigger>
             <SelectContent data-theme="company">
@@ -250,13 +296,12 @@ export function StaffDataTable({
 
           {/* Status filter */}
           <Select
-            value={filterStatus}
-            onValueChange={(val: 'all' | 'active' | 'inactive') => {
-              setFilterStatus(val);
-              setCurrentPage(1);
+            value={urlStatus}
+            onValueChange={(val) => {
+              updateFilters({ status: val === 'all' ? null : val });
             }}
           >
-            <SelectTrigger className="h-10 w-36 rounded-xl text-xs bg-card">
+            <SelectTrigger className="h-10 w-36 rounded-xl text-xs bg-card cursor-pointer">
               <SelectValue placeholder="All Status" />
             </SelectTrigger>
             <SelectContent data-theme="company">
@@ -265,6 +310,26 @@ export function StaffDataTable({
               <SelectItem value="inactive">Inactive</SelectItem>
             </SelectContent>
           </Select>
+
+          {/* Reset Filters button */}
+          {(urlSearch || urlLocation !== 'all' || urlStatus !== 'all') && (
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={() => {
+                setSearchTerm('');
+                startTransition(() => {
+                  router.push(pathname);
+                });
+              }}
+              disabled={isPending}
+              className="h-10 rounded-xl text-xs gap-1.5 border-dashed hover:border-solid cursor-pointer"
+            >
+              <IconRotateClockwise size={14} className={isPending ? 'animate-spin' : ''} />
+              <span>Reset</span>
+            </Button>
+          )}
         </div>
 
         {/* Quota info and Add button */}
@@ -484,15 +549,45 @@ export function StaffDataTable({
               })
             ) : (
               <TableRow>
-                <TableCell colSpan={6} className="h-44 text-center">
-                  <div className="flex flex-col items-center justify-center text-muted-foreground space-y-2">
-                    <IconAlertCircle size={28} className="text-muted-foreground/60" />
-                    <p className="text-sm font-semibold text-foreground">No specialists found</p>
-                    <p className="text-xs max-w-sm text-muted-foreground">
-                      {searchQuery || filterLocationId !== 'all' || filterStatus !== 'all'
-                        ? 'No staff members match the selected filters. Try clearing your search.'
-                        : 'No specialists created yet. Click "Add Specialist" to get started.'}
-                    </p>
+                <TableCell colSpan={6} className="h-48 text-center">
+                  <div className="flex flex-col items-center justify-center text-muted-foreground space-y-3 py-6">
+                    <div className="size-12 rounded-full bg-muted/60 flex items-center justify-center text-muted-foreground border border-border/60">
+                      <IconAlertCircle size={24} />
+                    </div>
+                    <div className="space-y-1 text-center">
+                      <p className="text-sm font-semibold text-foreground">No specialists found</p>
+                      <p className="text-xs max-w-sm text-muted-foreground">
+                        {urlSearch || urlLocation !== 'all' || urlStatus !== 'all'
+                          ? 'No staff members match the selected filters. Try clearing or resetting your filters.'
+                          : 'No specialists created yet. Click "Add Specialist" to get started.'}
+                      </p>
+                    </div>
+                    {urlSearch || urlLocation !== 'all' || urlStatus !== 'all' ? (
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        onClick={() => {
+                          setSearchTerm('');
+                          startTransition(() => {
+                            router.push(pathname);
+                          });
+                        }}
+                        className="rounded-xl text-xs gap-1.5 mt-1 cursor-pointer"
+                      >
+                        <IconRotateClockwise size={14} />
+                        <span>Reset Filters</span>
+                      </Button>
+                    ) : (
+                      <Button
+                        onClick={handleOpenAdd}
+                        size="sm"
+                        className="rounded-xl text-xs font-semibold gap-1.5 mt-1 cursor-pointer"
+                      >
+                        <IconPlus size={14} />
+                        <span>Add Specialist</span>
+                      </Button>
+                    )}
                   </div>
                 </TableCell>
               </TableRow>
@@ -500,91 +595,14 @@ export function StaffDataTable({
           </TableBody>
         </Table>
 
-        {/* Pagination Toolbar */}
-        {totalItems > 0 && (
-          <div className="flex flex-col sm:flex-row items-center justify-between gap-4 p-4 border-t border-border bg-card">
-            <div className="flex items-center gap-2 text-xs text-muted-foreground">
-              <span>Rows per page:</span>
-              <Select
-                value={String(pageSize)}
-                onValueChange={(val) => {
-                  setPageSize(Number(val));
-                  setCurrentPage(1);
-                }}
-              >
-                <SelectTrigger className="h-8 w-16 rounded-lg text-xs">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent data-theme="company">
-                  <SelectItem value="5">5</SelectItem>
-                  <SelectItem value="10">10</SelectItem>
-                  <SelectItem value="20">20</SelectItem>
-                  <SelectItem value="50">50</SelectItem>
-                </SelectContent>
-              </Select>
-              <span>
-                Showing{' '}
-                <strong className="text-foreground">
-                  {(safeCurrentPage - 1) * pageSize + 1}
-                </strong>{' '}
-                to{' '}
-                <strong className="text-foreground">
-                  {Math.min(safeCurrentPage * pageSize, totalItems)}
-                </strong>{' '}
-                of <strong className="text-foreground">{totalItems}</strong> specialists
-              </span>
-            </div>
-
-            <div className="flex items-center gap-1.5">
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => setCurrentPage(1)}
-                disabled={safeCurrentPage <= 1}
-                className="size-8 p-0 rounded-lg"
-                title="First Page"
-              >
-                <IconChevronsLeft size={16} />
-              </Button>
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
-                disabled={safeCurrentPage <= 1}
-                className="size-8 p-0 rounded-lg"
-                title="Previous Page"
-              >
-                <IconChevronLeft size={16} />
-              </Button>
-
-              <div className="px-2 text-xs text-muted-foreground font-medium">
-                Page <span className="text-foreground font-semibold">{safeCurrentPage}</span> of{' '}
-                <span className="text-foreground font-semibold">{totalPages}</span>
-              </div>
-
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
-                disabled={safeCurrentPage >= totalPages}
-                className="size-8 p-0 rounded-lg"
-                title="Next Page"
-              >
-                <IconChevronRight size={16} />
-              </Button>
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => setCurrentPage(totalPages)}
-                disabled={safeCurrentPage >= totalPages}
-                className="size-8 p-0 rounded-lg"
-                title="Last Page"
-              >
-                <IconChevronsRight size={16} />
-              </Button>
-            </div>
-          </div>
-        )}
+        {/* Unified Table Pagination Bar */}
+        <TablePaginationBar
+          total={totalItems}
+          page={safeCurrentPage}
+          limit={limit}
+          noun="specialists"
+          syncToUrl={true}
+        />
       </div>
 
       {/* Add / Edit Specialist Sheet */}
