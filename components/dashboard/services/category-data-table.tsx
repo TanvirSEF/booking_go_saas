@@ -1,6 +1,7 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect, useMemo, useTransition, useCallback } from 'react';
+import { useRouter, usePathname, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import {
   Table,
@@ -25,11 +26,14 @@ import { toast } from 'sonner';
 import {
   IconPlus,
   IconSearch,
+  IconX,
   IconFolder,
   IconFolderPlus,
   IconDotsVertical,
   IconTrash,
   IconExternalLink,
+  IconRotateClockwise,
+  IconAlertCircle,
 } from '@tabler/icons-react';
 import {
   type CategoryItem,
@@ -37,26 +41,78 @@ import {
 } from '@/actions/service';
 import { CategoryDialog } from './category-dialog';
 import { DeleteConfirmDialog } from './delete-confirm-dialog';
+import { TablePaginationBar } from '@/components/shared/table-pagination-bar';
 
 export interface CategoryDataTableProps {
   initialCategories: CategoryItem[];
 }
 
 export function CategoryDataTable({ initialCategories }: CategoryDataTableProps) {
+  const router = useRouter();
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
+  const [, startTransition] = useTransition();
+
+  const urlSearch = searchParams?.get('search') || '';
+  const page = Math.max(1, parseInt(searchParams?.get('page') || '1', 10) || 1);
+  const limit = Math.max(1, parseInt(searchParams?.get('limit') || '10', 10) || 10);
+
   const [categories, setCategories] = useState<CategoryItem[]>(initialCategories);
-  const [searchQuery, setSearchQuery] = useState('');
+  const [searchTerm, setSearchTerm] = useState(urlSearch);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [deletingCategory, setDeletingCategory] = useState<CategoryItem | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
 
-  const filteredCategories = categories.filter((cat) => {
-    const query = searchQuery.toLowerCase().trim();
-    if (!query) return true;
-    return (
-      cat.name.toLowerCase().includes(query) ||
-      (cat.description && cat.description.toLowerCase().includes(query))
+  const updateFilters = useCallback(
+    (updates: Record<string, string | null>) => {
+      const params = new URLSearchParams(searchParams ? searchParams.toString() : '');
+
+      Object.entries(updates).forEach(([key, value]) => {
+        if (value && value.trim() !== '') {
+          params.set(key, value.trim());
+        } else {
+          params.delete(key);
+        }
+      });
+
+      params.set('page', '1');
+
+      startTransition(() => {
+        router.push(`${pathname}?${params.toString()}`);
+      });
+    },
+    [searchParams, pathname, router]
+  );
+
+  // Debounce search query
+  useEffect(() => {
+    if (searchTerm === urlSearch) return;
+
+    const timeout = setTimeout(() => {
+      updateFilters({ search: searchTerm.trim() || null });
+    }, 350);
+
+    return () => clearTimeout(timeout);
+  }, [searchTerm, urlSearch, updateFilters]);
+
+  const filteredCategories = useMemo(() => {
+    const query = urlSearch.toLowerCase().trim();
+    if (!query) return categories;
+    return categories.filter(
+      (cat) =>
+        cat.name.toLowerCase().includes(query) ||
+        (cat.description && cat.description.toLowerCase().includes(query))
     );
-  });
+  }, [categories, urlSearch]);
+
+  const totalItems = filteredCategories.length;
+  const totalPages = Math.max(1, Math.ceil(totalItems / limit));
+  const safePage = Math.min(page, totalPages);
+
+  const paginatedCategories = useMemo(() => {
+    const start = (safePage - 1) * limit;
+    return filteredCategories.slice(start, start + limit);
+  }, [filteredCategories, safePage, limit]);
 
   const handleCategoryCreated = (newCategory: CategoryItem) => {
     setCategories((prev) => [...prev, newCategory]);
@@ -109,19 +165,32 @@ export function CategoryDataTable({ initialCategories }: CategoryDataTableProps)
         <div className="relative flex-1 max-w-sm">
           <IconSearch
             size={16}
-            className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground"
+            className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground pointer-events-none"
           />
           <Input
             placeholder="Search categories..."
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            className="pl-9 h-10 rounded-xl bg-card border-border"
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            className="pl-9 pr-8 h-10 rounded-xl bg-card border-border text-xs"
           />
+          {searchTerm && (
+            <button
+              type="button"
+              onClick={() => {
+                setSearchTerm('');
+                updateFilters({ search: null });
+              }}
+              className="absolute right-2.5 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground cursor-pointer"
+              aria-label="Clear search"
+            >
+              <IconX size={15} />
+            </button>
+          )}
         </div>
 
         <Button
           onClick={() => setIsDialogOpen(true)}
-          className="rounded-xl font-semibold gap-1.5 h-10"
+          className="rounded-xl font-semibold gap-1.5 h-10 cursor-pointer"
         >
           <IconPlus size={16} />
           <span>Add Category</span>
@@ -132,7 +201,7 @@ export function CategoryDataTable({ initialCategories }: CategoryDataTableProps)
       <div className="rounded-2xl border border-border bg-card overflow-hidden shadow-xs">
         <Table>
           <TableHeader className="bg-muted/40">
-            <TableRow className="hover:bg-transparent">
+            <TableRow className="hover:bg-transparent border-b border-border">
               <TableHead className="font-semibold text-xs text-foreground min-w-[220px]">
                 Category Name
               </TableHead>
@@ -152,35 +221,55 @@ export function CategoryDataTable({ initialCategories }: CategoryDataTableProps)
           </TableHeader>
 
           <TableBody>
-            {filteredCategories.length === 0 ? (
+            {paginatedCategories.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={5} className="h-44 text-center">
-                  <div className="flex flex-col items-center justify-center gap-2">
-                    <div className="size-10 rounded-full bg-muted flex items-center justify-center text-muted-foreground">
-                      <IconFolder size={20} />
+                <TableCell colSpan={5} className="h-48 text-center">
+                  <div className="flex flex-col items-center justify-center text-muted-foreground space-y-3 py-6">
+                    <div className="size-12 rounded-full bg-muted/60 flex items-center justify-center text-muted-foreground border border-border/60">
+                      <IconAlertCircle size={24} />
                     </div>
-                    <p className="text-sm font-semibold text-foreground">
-                      No categories found
-                    </p>
-                    <p className="text-xs text-muted-foreground max-w-xs">
-                      {searchQuery
-                        ? `No category matches "${searchQuery}".`
-                        : 'Organize your service catalog by adding your first category.'}
-                    </p>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => setIsDialogOpen(true)}
-                      className="mt-2 rounded-xl text-xs gap-1"
-                    >
-                      <IconFolderPlus size={14} />
-                      <span>Add Category</span>
-                    </Button>
+                    <div className="space-y-1 text-center">
+                      <p className="text-sm font-semibold text-foreground">
+                        No categories found
+                      </p>
+                      <p className="text-xs text-muted-foreground max-w-xs">
+                        {urlSearch
+                          ? `No category matches "${urlSearch}". Try clearing or resetting the search.`
+                          : 'Organize your service catalog by adding your first category.'}
+                      </p>
+                    </div>
+                    {urlSearch ? (
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        onClick={() => {
+                          setSearchTerm('');
+                          startTransition(() => {
+                            router.push(pathname);
+                          });
+                        }}
+                        className="rounded-xl text-xs gap-1.5 mt-1 cursor-pointer"
+                      >
+                        <IconRotateClockwise size={14} />
+                        <span>Reset Search</span>
+                      </Button>
+                    ) : (
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => setIsDialogOpen(true)}
+                        className="mt-1 rounded-xl text-xs gap-1 cursor-pointer"
+                      >
+                        <IconFolderPlus size={14} />
+                        <span>Add Category</span>
+                      </Button>
+                    )}
                   </div>
                 </TableCell>
               </TableRow>
             ) : (
-              filteredCategories.map((cat) => (
+              paginatedCategories.map((cat) => (
                 <TableRow key={cat.id} className="hover:bg-muted/30 transition-colors">
                   {/* Category Name */}
                   <TableCell className="py-3">
@@ -260,6 +349,15 @@ export function CategoryDataTable({ initialCategories }: CategoryDataTableProps)
             )}
           </TableBody>
         </Table>
+
+        {/* Unified Table Pagination Bar */}
+        <TablePaginationBar
+          total={totalItems}
+          page={safePage}
+          limit={limit}
+          noun="categories"
+          syncToUrl={true}
+        />
       </div>
 
       <CategoryDialog

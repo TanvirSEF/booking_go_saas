@@ -64,3 +64,16 @@ All AI agents working on this codebase MUST strictly follow these rules:
 - Whenever assigned a task, immediately audit prerequisites before coding:
   - If required models, server actions, APIs, or files are **missing/not implemented yet**, report immediately to the user specifying the missing files.
   - If a task or prerequisite belongs to another developer's scope (e.g. Developer 1 backend, Developer 3 company dashboard, Developer 4 billing), clearly inform the user with actionable next steps before proceeding.
+
+## 10. Unified Data Table & Pagination Standards (Mandatory UI/UX)
+- Every page and component with a data table MUST strictly adhere to the standardized table pattern established in `/dashboard/appointments`:
+  - **URL Search Params Sync**: Real-time search (`search`), filters (e.g. `status`, `category`), pagination index (`page`), and page size (`limit`) MUST sync to the browser's URL search parameters via Next.js `useRouter`, `usePathname`, and `useSearchParams` wrapped in `useTransition`.
+  - **Debounced Real-Time Search**: Search inputs must have debounced updates (300-350ms) with a clear button (`X`) when a query exists.
+  - **Standard Table Shell**: Wrap tables in `rounded-xl border border-border bg-card shadow-xs overflow-hidden` with `TableHeader className="bg-muted/40"` and `TableHead className="font-semibold text-xs text-foreground"`.
+  - **Unified Pagination Footer Layout**:
+    - **Left**: `Showing <strong className="text-foreground">{start}</strong> to <strong className="text-foreground">{end}</strong> of <strong className="text-foreground">{total}</strong> {items}`.
+    - **Right**: `Rows per page: [Select 10 / 25 / 50]` followed by `<Button variant="outline" size="icon" className="size-8">` Previous, `Page X of Y`, and Next buttons.
+    - Always use the reusable `@/components/shared/table-pagination-bar` primitive.
+  - **Empty States**: Centered icon circle (`size-12 rounded-full bg-muted/60`), title, description, and a "Reset Filters" button when search or filters are active.
+  - **Canonical Reference Implementation**: Follow the structure in `components/appointments/appointment-data-table.tsx` whenever creating any new table or refactoring an existing table.
+

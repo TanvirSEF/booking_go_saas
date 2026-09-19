@@ -1,6 +1,7 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect, useMemo, useTransition, useCallback } from 'react';
+import { useRouter, usePathname, useSearchParams } from 'next/navigation';
 import {
   Table,
   TableBody,
@@ -32,6 +33,8 @@ import {
   IconPower,
   IconCheck,
   IconX,
+  IconAlertCircle,
+  IconRotateClockwise,
 } from '@tabler/icons-react';
 import {
   type ServiceItem,
@@ -41,6 +44,7 @@ import {
 } from '@/actions/service';
 import { ServiceSheet } from './service-sheet';
 import { DeleteConfirmDialog } from './delete-confirm-dialog';
+import { TablePaginationBar } from '@/components/shared/table-pagination-bar';
 import { cn } from '@/lib/utils';
 
 export interface PlanQuotaInfo {
@@ -68,29 +72,88 @@ export function ServiceDataTable({
   planQuota,
   onServicesChange,
 }: ServiceDataTableProps) {
-  const [searchQuery, setSearchQuery] = useState('');
+  const router = useRouter();
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
+  const [, startTransition] = useTransition();
+
+  const urlSearch = searchParams?.get('search') || '';
+  const urlCategory = searchParams?.get('category') || selectedCategoryId || null;
+  const page = Math.max(1, parseInt(searchParams?.get('page') || '1', 10) || 1);
+  const limit = Math.max(1, parseInt(searchParams?.get('limit') || '10', 10) || 10);
+
+  const [searchTerm, setSearchTerm] = useState(urlSearch);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [editingService, setEditingService] = useState<ServiceItem | null>(null);
   const [actionLoadingId, setActionLoadingId] = useState<string | null>(null);
   const [deletingService, setDeletingService] = useState<ServiceItem | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
 
-  const filteredServices = services.filter((srv) => {
-    // 1. Category filter
-    if (selectedCategoryId && srv.categoryId !== selectedCategoryId) {
-      return false;
-    }
+  const updateFilters = useCallback(
+    (updates: Record<string, string | null>) => {
+      const params = new URLSearchParams(searchParams ? searchParams.toString() : '');
 
-    // 2. Search query
-    const query = searchQuery.toLowerCase().trim();
-    if (!query) return true;
+      Object.entries(updates).forEach(([key, value]) => {
+        if (value && value.trim() !== '') {
+          params.set(key, value.trim());
+        } else {
+          params.delete(key);
+        }
+      });
 
-    return (
-      srv.name.toLowerCase().includes(query) ||
-      srv.categoryName.toLowerCase().includes(query) ||
-      (srv.description && srv.description.toLowerCase().includes(query))
-    );
-  });
+      params.set('page', '1');
+
+      startTransition(() => {
+        router.push(`${pathname}?${params.toString()}`);
+      });
+    },
+    [searchParams, pathname, router]
+  );
+
+  // Debounce search query
+  useEffect(() => {
+    if (searchTerm === urlSearch) return;
+
+    const timeout = setTimeout(() => {
+      updateFilters({ search: searchTerm.trim() || null });
+    }, 350);
+
+    return () => clearTimeout(timeout);
+  }, [searchTerm, urlSearch, updateFilters]);
+
+  const handleCategorySelect = (categoryId: string | null) => {
+    onSelectCategory(categoryId);
+    updateFilters({ category: categoryId });
+  };
+
+  const filteredServices = useMemo(() => {
+    const query = urlSearch.toLowerCase().trim();
+
+    return services.filter((srv) => {
+      // 1. Category filter
+      if (urlCategory && srv.categoryId !== urlCategory) {
+        return false;
+      }
+
+      // 2. Search query
+      if (!query) return true;
+
+      return (
+        srv.name.toLowerCase().includes(query) ||
+        srv.categoryName.toLowerCase().includes(query) ||
+        (srv.description && srv.description.toLowerCase().includes(query))
+      );
+    });
+  }, [services, urlCategory, urlSearch]);
+
+  const totalItems = filteredServices.length;
+  const totalPages = Math.max(1, Math.ceil(totalItems / limit));
+  const safePage = Math.min(page, totalPages);
+
+  const paginatedServices = useMemo(() => {
+    const start = (safePage - 1) * limit;
+    return filteredServices.slice(start, start + limit);
+  }, [filteredServices, safePage, limit]);
 
   const handleOpenAdd = () => {
     setEditingService(null);
@@ -179,14 +242,27 @@ export function ServiceDataTable({
         <div className="relative flex-1 max-w-sm">
           <IconSearch
             size={16}
-            className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground"
+            className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground pointer-events-none"
           />
           <Input
             placeholder="Search services by title or details..."
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            className="pl-9 h-10 rounded-xl bg-card border-border"
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            className="pl-9 pr-8 h-10 rounded-xl bg-card border-border text-xs"
           />
+          {searchTerm && (
+            <button
+              type="button"
+              onClick={() => {
+                setSearchTerm('');
+                updateFilters({ search: null });
+              }}
+              className="absolute right-2.5 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground cursor-pointer"
+              aria-label="Clear search"
+            >
+              <IconX size={15} />
+            </button>
+          )}
         </div>
 
         {/* Plan Quota Badge & Add Service Button */}
@@ -203,7 +279,7 @@ export function ServiceDataTable({
 
           <Button
             onClick={handleOpenAdd}
-            className="rounded-xl font-semibold gap-1.5 h-10"
+            className="rounded-xl font-semibold gap-1.5 h-10 cursor-pointer"
           >
             <IconPlus size={16} />
             <span>Add Service</span>
@@ -215,10 +291,10 @@ export function ServiceDataTable({
       <div className="flex items-center gap-1.5 overflow-x-auto pb-1 scrollbar-none">
         <button
           type="button"
-          onClick={() => onSelectCategory(null)}
+          onClick={() => handleCategorySelect(null)}
           className={cn(
             'px-3 py-1 rounded-lg text-xs font-medium shrink-0 transition-colors cursor-pointer border',
-            selectedCategoryId === null
+            urlCategory === null
               ? 'bg-emerald-600 text-white border-emerald-600 dark:bg-emerald-500 dark:border-emerald-500 font-semibold'
               : 'bg-card text-muted-foreground hover:text-foreground border-border'
           )}
@@ -229,10 +305,10 @@ export function ServiceDataTable({
           <button
             key={cat.id}
             type="button"
-            onClick={() => onSelectCategory(cat.id)}
+            onClick={() => handleCategorySelect(cat.id)}
             className={cn(
               'px-3 py-1 rounded-lg text-xs font-medium shrink-0 transition-colors cursor-pointer border',
-              selectedCategoryId === cat.id
+              urlCategory === cat.id
                 ? 'bg-emerald-600 text-white border-emerald-600 dark:bg-emerald-500 dark:border-emerald-500 font-semibold'
                 : 'bg-card text-muted-foreground hover:text-foreground border-border'
             )}
@@ -246,7 +322,7 @@ export function ServiceDataTable({
       <div className="rounded-2xl border border-border bg-card overflow-hidden shadow-xs">
         <Table>
           <TableHeader className="bg-muted/40">
-            <TableRow className="hover:bg-transparent">
+            <TableRow className="hover:bg-transparent border-b border-border">
               <TableHead className="font-semibold text-xs text-foreground min-w-[200px]">
                 Service Name
               </TableHead>
@@ -272,37 +348,58 @@ export function ServiceDataTable({
           </TableHeader>
 
           <TableBody>
-            {filteredServices.length === 0 ? (
+            {paginatedServices.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={7} className="h-44 text-center">
-                  <div className="flex flex-col items-center justify-center gap-2">
-                    <div className="size-10 rounded-full bg-muted flex items-center justify-center text-muted-foreground">
-                      <IconScissors size={20} />
+                <TableCell colSpan={7} className="h-48 text-center">
+                  <div className="flex flex-col items-center justify-center text-muted-foreground space-y-3 py-6">
+                    <div className="size-12 rounded-full bg-muted/60 flex items-center justify-center text-muted-foreground border border-border/60">
+                      <IconAlertCircle size={24} />
                     </div>
-                    <p className="text-sm font-semibold text-foreground">
-                      No services found
-                    </p>
-                    <p className="text-xs text-muted-foreground max-w-xs">
-                      {searchQuery
-                        ? `No services match "${searchQuery}". Try a different keyword.`
-                        : selectedCategoryObj
-                          ? `No services in "${selectedCategoryObj.name}" yet.`
-                          : 'Get started by creating your first service item.'}
-                    </p>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={handleOpenAdd}
-                      className="mt-2 rounded-xl text-xs gap-1"
-                    >
-                      <IconPlus size={14} />
-                      <span>Add Service</span>
-                    </Button>
+                    <div className="space-y-1 text-center">
+                      <p className="text-sm font-semibold text-foreground">
+                        No services found
+                      </p>
+                      <p className="text-xs text-muted-foreground max-w-xs">
+                        {urlSearch
+                          ? `No services match "${urlSearch}". Try a different keyword.`
+                          : selectedCategoryObj
+                            ? `No services in "${selectedCategoryObj.name}" yet.`
+                            : 'Get started by creating your first service item.'}
+                      </p>
+                    </div>
+                    {urlSearch || urlCategory ? (
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        onClick={() => {
+                          setSearchTerm('');
+                          onSelectCategory(null);
+                          startTransition(() => {
+                            router.push(pathname);
+                          });
+                        }}
+                        className="rounded-xl text-xs gap-1.5 mt-1 cursor-pointer"
+                      >
+                        <IconRotateClockwise size={14} />
+                        <span>Reset Filters</span>
+                      </Button>
+                    ) : (
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={handleOpenAdd}
+                        className="mt-1 rounded-xl text-xs gap-1 cursor-pointer"
+                      >
+                        <IconPlus size={14} />
+                        <span>Add Service</span>
+                      </Button>
+                    )}
                   </div>
                 </TableCell>
               </TableRow>
             ) : (
-              filteredServices.map((srv) => (
+              paginatedServices.map((srv) => (
                 <TableRow key={srv.id} className="hover:bg-muted/30 transition-colors">
                   {/* Service Name & Description */}
                   <TableCell className="py-3">
@@ -454,6 +551,15 @@ export function ServiceDataTable({
             )}
           </TableBody>
         </Table>
+
+        {/* Unified Table Pagination Bar */}
+        <TablePaginationBar
+          total={totalItems}
+          page={safePage}
+          limit={limit}
+          noun="services"
+          syncToUrl={true}
+        />
       </div>
 
       <ServiceSheet

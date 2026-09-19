@@ -15,7 +15,11 @@ export const metadata: Metadata = {
   description: 'Manage customers, track appointment visit history, and monitor lifetime spend metrics.',
 };
 
-export default async function CustomersPage() {
+interface CustomersPageProps {
+  searchParams: Promise<{ [key: string]: string | string[] | undefined }>;
+}
+
+export default async function CustomersPage({ searchParams }: CustomersPageProps) {
   const session = await auth();
 
   if (!session?.user?.id) {
@@ -38,12 +42,17 @@ export default async function CustomersPage() {
     redirect('/dashboard');
   }
 
+  const resolvedParams = await searchParams;
+  const page = Math.max(1, parseInt(String(resolvedParams.page || '1'), 10) || 1);
+  const limit = Math.max(1, Math.min(100, parseInt(String(resolvedParams.limit || '10'), 10) || 10));
+  const search = typeof resolvedParams.search === 'string' ? resolvedParams.search : undefined;
+
   // Fetch active business context & initial customer records concurrently
   const [activeBusiness, customersRes] = await Promise.all([
     user.activeBusinessId
       ? Business.findById(user.activeBusinessId).select('name slug').lean()
       : Business.findOne({ companyId }).select('name slug').lean(),
-    getCompanyCustomersAction({ page: 1, limit: 15 }),
+    getCompanyCustomersAction({ page, limit, search }),
   ]);
 
   const initialCustomers =
@@ -78,8 +87,9 @@ export default async function CustomersPage() {
         <CustomerDataTable
           initialCustomers={initialCustomers}
           totalRecords={totalRecords}
-          initialPage={1}
-          pageSize={15}
+          page={page}
+          limit={limit}
+          search={search || ''}
         />
       </main>
     </div>

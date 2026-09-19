@@ -1,13 +1,14 @@
 "use client";
 
-import { useState, useMemo } from "react";
-import { useRouter } from "next/navigation";
+import { useState, useMemo, useEffect, useTransition, useCallback } from "react";
+import { useRouter, usePathname, useSearchParams } from "next/navigation";
 import { toast } from "sonner";
 import {
   IconDownload,
   IconRotate2,
   IconRefresh,
   IconSearch,
+  IconX,
   IconUser,
   IconApps,
   IconSwitchHorizontal,
@@ -15,10 +16,9 @@ import {
   IconAdjustmentsHorizontal,
   IconPencil,
   IconTrash,
-  IconChevronLeft,
-  IconChevronRight,
   IconArrowsSort,
   IconPower,
+  IconRotateClockwise,
 } from "@tabler/icons-react";
 import {
   Table,
@@ -28,13 +28,6 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -44,6 +37,7 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 import { CompanyItem } from "./company-dialog";
+import { TablePaginationBar } from "@/components/shared/table-pagination-bar";
 
 interface CompanyDataTableProps {
   companies: CompanyItem[];
@@ -61,18 +55,56 @@ export function CompanyDataTable({
   onToggleStatus,
 }: CompanyDataTableProps) {
   const router = useRouter();
-  const [searchQuery, setSearchQuery] = useState("");
-  const [entriesPerPage, setEntriesPerPage] = useState("10");
-  const [currentPage, setCurrentPage] = useState(1);
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
+  const [, startTransition] = useTransition();
+
+  const urlSearch = searchParams?.get("search") || "";
+  const page = Math.max(1, parseInt(searchParams?.get("page") || "1", 10) || 1);
+  const limit = Math.max(1, parseInt(searchParams?.get("limit") || "10", 10) || 10);
+
+  const [searchTerm, setSearchTerm] = useState(urlSearch);
   const [sortField, setSortField] = useState<"name" | "role" | null>(null);
   const [sortOrder, setSortOrder] = useState<"asc" | "desc">("asc");
+
+  const updateFilters = useCallback(
+    (updates: Record<string, string | null>) => {
+      const params = new URLSearchParams(searchParams ? searchParams.toString() : "");
+
+      Object.entries(updates).forEach(([key, value]) => {
+        if (value && value.trim() !== "") {
+          params.set(key, value.trim());
+        } else {
+          params.delete(key);
+        }
+      });
+
+      params.set("page", "1");
+
+      startTransition(() => {
+        router.push(`${pathname}?${params.toString()}`);
+      });
+    },
+    [searchParams, pathname, router]
+  );
+
+  // Debounce search input
+  useEffect(() => {
+    if (searchTerm === urlSearch) return;
+
+    const timeout = setTimeout(() => {
+      updateFilters({ search: searchTerm.trim() || null });
+    }, 350);
+
+    return () => clearTimeout(timeout);
+  }, [searchTerm, urlSearch, updateFilters]);
 
   // Filtering
   const filteredCompanies = useMemo(() => {
     let result = [...companies];
 
-    if (searchQuery.trim()) {
-      const q = searchQuery.toLowerCase();
+    if (urlSearch.trim()) {
+      const q = urlSearch.toLowerCase().trim();
       result = result.filter(
         (c) =>
           c.name.toLowerCase().includes(q) ||
@@ -92,16 +124,16 @@ export function CompanyDataTable({
     }
 
     return result;
-  }, [companies, searchQuery, sortField, sortOrder]);
+  }, [companies, urlSearch, sortField, sortOrder]);
 
   // Pagination
-  const pageSize = parseInt(entriesPerPage, 10) || 10;
   const totalEntries = filteredCompanies.length;
-  const totalPages = Math.max(1, Math.ceil(totalEntries / pageSize));
-  const startIndex = (currentPage - 1) * pageSize;
+  const totalPages = Math.max(1, Math.ceil(totalEntries / limit));
+  const safePage = Math.min(page, totalPages);
+  const startIndex = (safePage - 1) * limit;
   const paginatedCompanies = filteredCompanies.slice(
     startIndex,
-    startIndex + pageSize
+    startIndex + limit
   );
 
   function toggleSort(field: "name" | "role") {
@@ -138,41 +170,43 @@ export function CompanyDataTable({
   }
 
   function handleReset() {
-    setSearchQuery("");
+    setSearchTerm("");
     setSortField(null);
-    setCurrentPage(1);
+    updateFilters({ search: null });
     toast.info("Search and filters reset.");
   }
 
   return (
     <div className="flex flex-col gap-4 rounded-2xl border border-border/40 bg-card p-4 shadow-xs">
-      {/* Top Toolbar matching table-view.png */}
+      {/* Top Toolbar */}
       <div className="flex flex-wrap items-center justify-between gap-3">
-        {/* Left: Entries Per Page */}
-        <div className="flex items-center gap-2 text-xs text-muted-foreground">
-          <Select value={entriesPerPage} onValueChange={setEntriesPerPage}>
-            <SelectTrigger className="h-8 w-16 rounded-lg text-xs">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent className="w-16">
-              <SelectItem value="5" className="text-xs">
-                5
-              </SelectItem>
-              <SelectItem value="10" className="text-xs">
-                10
-              </SelectItem>
-              <SelectItem value="25" className="text-xs">
-                25
-              </SelectItem>
-              <SelectItem value="50" className="text-xs">
-                50
-              </SelectItem>
-            </SelectContent>
-          </Select>
-          <span className="font-medium text-foreground">Entries Per Page</span>
+        {/* Left: Search with clear button */}
+        <div className="relative flex-1 sm:max-w-xs">
+          <IconSearch
+            size={16}
+            className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground"
+          />
+          <Input
+            placeholder="Search subscribers..."
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            className="h-9 w-full rounded-lg pl-9 pr-8 text-xs sm:text-sm"
+          />
+          {searchTerm && (
+            <button
+              type="button"
+              onClick={() => {
+                setSearchTerm("");
+                updateFilters({ search: null });
+              }}
+              className="absolute right-2.5 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+            >
+              <IconX size={14} />
+            </button>
+          )}
         </div>
 
-        {/* Right: Actions & Search */}
+        {/* Right: Actions */}
         <div className="flex items-center gap-2">
           {/* Download Button */}
           <Tooltip>
@@ -220,23 +254,6 @@ export function CompanyDataTable({
             </TooltipTrigger>
             <TooltipContent>Refresh</TooltipContent>
           </Tooltip>
-
-          {/* Search Input */}
-          <div className="relative">
-            <Input
-              placeholder="Search..."
-              value={searchQuery}
-              onChange={(e) => {
-                setSearchQuery(e.target.value);
-                setCurrentPage(1);
-              }}
-              className="h-8 w-44 rounded-lg pl-8 text-xs sm:w-56"
-            />
-            <IconSearch
-              size={14}
-              className="pointer-events-none absolute left-2.5 top-1/2 -translate-y-1/2 text-muted-foreground"
-            />
-          </div>
         </div>
       </div>
 
@@ -274,9 +291,30 @@ export function CompanyDataTable({
               <TableRow>
                 <TableCell
                   colSpan={6}
-                  className="h-28 text-center text-muted-foreground"
+                  className="h-40 text-center"
                 >
-                  No subscribers found.
+                  <div className="flex flex-col items-center justify-center gap-2 py-6">
+                    <div className="flex size-12 items-center justify-center rounded-full bg-muted/60 text-muted-foreground">
+                      <IconSearch size={22} />
+                    </div>
+                    <p className="text-sm font-medium text-foreground">No subscribers found</p>
+                    <p className="text-xs text-muted-foreground">
+                      {urlSearch
+                        ? `No subscribers matching "${urlSearch}"`
+                        : "No subscribers currently registered."}
+                    </p>
+                    {urlSearch && (
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={handleReset}
+                        className="mt-2 h-8 text-xs"
+                      >
+                        <IconRotateClockwise size={13} className="mr-1.5" />
+                        Reset Search
+                      </Button>
+                    )}
+                  </div>
                 </TableCell>
               </TableRow>
             ) : (
@@ -423,50 +461,13 @@ export function CompanyDataTable({
       </div>
 
       {/* Table Footer: Pagination */}
-      <div className="flex items-center justify-between text-xs text-muted-foreground">
-        <span>
-          Showing {totalEntries > 0 ? startIndex + 1 : 0} to{" "}
-          {Math.min(startIndex + pageSize, totalEntries)} of {totalEntries} entries
-        </span>
-
-        <div className="flex items-center gap-1">
-          <Button
-            variant="outline"
-            size="icon-xs"
-            disabled={currentPage <= 1}
-            onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
-            className="size-7 rounded-lg"
-          >
-            <IconChevronLeft size={14} />
-          </Button>
-
-          {Array.from({ length: totalPages }, (_, i) => i + 1).map((page) => (
-            <Button
-              key={page}
-              size="icon-xs"
-              variant={currentPage === page ? "default" : "outline"}
-              onClick={() => setCurrentPage(page)}
-              className={`size-7 rounded-lg text-xs ${
-                currentPage === page
-                  ? "bg-primary text-primary-foreground"
-                  : "text-foreground"
-              }`}
-            >
-              {page}
-            </Button>
-          ))}
-
-          <Button
-            variant="outline"
-            size="icon-xs"
-            disabled={currentPage >= totalPages}
-            onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
-            className="size-7 rounded-lg"
-          >
-            <IconChevronRight size={14} />
-          </Button>
-        </div>
-      </div>
+      <TablePaginationBar
+        total={totalEntries}
+        page={safePage}
+        limit={limit}
+        noun="subscribers"
+        syncToUrl={true}
+      />
     </div>
   );
 }

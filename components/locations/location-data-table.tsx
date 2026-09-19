@@ -1,6 +1,7 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect, useMemo, useTransition, useCallback } from 'react';
+import { useRouter, usePathname, useSearchParams } from 'next/navigation';
 import {
   Table,
   TableBody,
@@ -24,6 +25,7 @@ import { toast } from 'sonner';
 import {
   IconPlus,
   IconSearch,
+  IconX,
   IconMapPin,
   IconPhone,
   IconDotsVertical,
@@ -32,6 +34,7 @@ import {
   IconPower,
   IconBuilding,
   IconAlertCircle,
+  IconRotateClockwise,
 } from '@tabler/icons-react';
 import {
   type LocationItem,
@@ -39,6 +42,7 @@ import {
   deleteLocation,
 } from '@/actions/location';
 import { LocationDialog } from './location-dialog';
+import { TablePaginationBar } from '@/components/shared/table-pagination-bar';
 
 export interface PlanQuotaInfo {
   current: number;
@@ -55,21 +59,72 @@ export function LocationDataTable({
   initialLocations,
   planQuota,
 }: LocationDataTableProps) {
+  const router = useRouter();
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
+  const [, startTransition] = useTransition();
+
+  const urlSearch = searchParams?.get('search') || '';
+  const page = Math.max(1, parseInt(searchParams?.get('page') || '1', 10) || 1);
+  const limit = Math.max(1, parseInt(searchParams?.get('limit') || '10', 10) || 10);
+
   const [locations, setLocations] = useState<LocationItem[]>(initialLocations);
-  const [searchQuery, setSearchQuery] = useState('');
+  const [searchTerm, setSearchTerm] = useState(urlSearch);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [selectedLocation, setSelectedLocation] = useState<LocationItem | null>(null);
   const [actionLoadingId, setActionLoadingId] = useState<string | null>(null);
 
-  const filteredLocations = locations.filter((loc) => {
-    const query = searchQuery.toLowerCase().trim();
-    if (!query) return true;
-    return (
-      loc.name.toLowerCase().includes(query) ||
-      loc.address.toLowerCase().includes(query) ||
-      loc.phone.toLowerCase().includes(query)
+  const updateFilters = useCallback(
+    (updates: Record<string, string | null>) => {
+      const params = new URLSearchParams(searchParams ? searchParams.toString() : '');
+
+      Object.entries(updates).forEach(([key, value]) => {
+        if (value && value.trim() !== '') {
+          params.set(key, value.trim());
+        } else {
+          params.delete(key);
+        }
+      });
+
+      params.set('page', '1');
+
+      startTransition(() => {
+        router.push(`${pathname}?${params.toString()}`);
+      });
+    },
+    [searchParams, pathname, router]
+  );
+
+  // Debounce search query changes
+  useEffect(() => {
+    if (searchTerm === urlSearch) return;
+
+    const timeout = setTimeout(() => {
+      updateFilters({ search: searchTerm.trim() || null });
+    }, 350);
+
+    return () => clearTimeout(timeout);
+  }, [searchTerm, urlSearch, updateFilters]);
+
+  const filteredLocations = useMemo(() => {
+    const query = urlSearch.toLowerCase().trim();
+    if (!query) return locations;
+    return locations.filter(
+      (loc) =>
+        loc.name.toLowerCase().includes(query) ||
+        loc.address.toLowerCase().includes(query) ||
+        loc.phone.toLowerCase().includes(query)
     );
-  });
+  }, [locations, urlSearch]);
+
+  const totalItems = filteredLocations.length;
+  const totalPages = Math.max(1, Math.ceil(totalItems / limit));
+  const safePage = Math.min(page, totalPages);
+
+  const paginatedLocations = useMemo(() => {
+    const start = (safePage - 1) * limit;
+    return filteredLocations.slice(start, start + limit);
+  }, [filteredLocations, safePage, limit]);
 
   const handleOpenAddDialog = () => {
     setSelectedLocation(null);
@@ -133,14 +188,27 @@ export function LocationDataTable({
         <div className="relative w-full sm:w-80">
           <IconSearch
             size={16}
-            className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground"
+            className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground pointer-events-none"
           />
           <Input
             placeholder="Search branches or address..."
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            className="pl-9 h-10 rounded-xl"
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            className="pl-9 pr-8 h-10 rounded-xl bg-background"
           />
+          {searchTerm && (
+            <button
+              type="button"
+              onClick={() => {
+                setSearchTerm('');
+                updateFilters({ search: null });
+              }}
+              className="absolute right-2.5 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground cursor-pointer"
+              aria-label="Clear search"
+            >
+              <IconX size={15} />
+            </button>
+          )}
         </div>
 
         {/* Action Button & Quota Info */}
@@ -158,7 +226,7 @@ export function LocationDataTable({
 
           <Button
             onClick={handleOpenAddDialog}
-            className="rounded-xl flex items-center gap-1.5 shadow-sm"
+            className="rounded-xl flex items-center gap-1.5 shadow-sm cursor-pointer"
           >
             <IconPlus size={16} />
             <span>Add Location</span>
@@ -167,10 +235,10 @@ export function LocationDataTable({
       </div>
 
       {/* Locations Table */}
-      <div className="rounded-2xl border bg-card shadow-sm overflow-hidden">
+      <div className="rounded-2xl border border-border bg-card shadow-xs overflow-hidden">
         <Table>
           <TableHeader>
-            <TableRow className="bg-muted/30 hover:bg-muted/30">
+            <TableRow className="bg-muted/30 hover:bg-muted/30 border-b border-border">
               <TableHead className="w-[260px] font-semibold text-xs">Branch Name</TableHead>
               <TableHead className="font-semibold text-xs">Address</TableHead>
               <TableHead className="font-semibold text-xs">Contact Phone</TableHead>
@@ -179,11 +247,11 @@ export function LocationDataTable({
             </TableRow>
           </TableHeader>
           <TableBody>
-            {filteredLocations.length > 0 ? (
-              filteredLocations.map((loc) => {
+            {paginatedLocations.length > 0 ? (
+              paginatedLocations.map((loc) => {
                 const isLoading = actionLoadingId === loc.id;
                 return (
-                  <TableRow key={loc.id} className="transition-colors">
+                  <TableRow key={loc.id} className="transition-colors hover:bg-muted/30 border-b border-border">
                     {/* Name */}
                     <TableCell className="font-medium">
                       <div className="flex items-center gap-2.5">
@@ -245,7 +313,7 @@ export function LocationDataTable({
                             variant="ghost"
                             size="sm"
                             disabled={isLoading}
-                            className="h-8 w-8 p-0 rounded-lg"
+                            className="h-8 w-8 p-0 rounded-lg cursor-pointer"
                           >
                             <IconDotsVertical size={16} />
                           </Button>
@@ -282,21 +350,60 @@ export function LocationDataTable({
               })
             ) : (
               <TableRow>
-                <TableCell colSpan={5} className="h-40 text-center">
-                  <div className="flex flex-col items-center justify-center text-muted-foreground space-y-2">
-                    <IconAlertCircle size={28} className="text-muted-foreground/60" />
-                    <p className="text-sm font-medium">No locations found</p>
-                    <p className="text-xs max-w-sm">
-                      {searchQuery
-                        ? 'No branches match your search query. Try clearing the filter.'
-                        : 'You haven’t created any branches yet. Click "Add Location" to get started.'}
-                    </p>
+                <TableCell colSpan={5} className="h-48 text-center">
+                  <div className="flex flex-col items-center justify-center text-muted-foreground space-y-3 py-6">
+                    <div className="size-12 rounded-full bg-muted/60 flex items-center justify-center text-muted-foreground border border-border/60">
+                      <IconAlertCircle size={24} />
+                    </div>
+                    <div className="space-y-1 text-center">
+                      <p className="text-sm font-semibold text-foreground">No locations found</p>
+                      <p className="text-xs max-w-sm text-muted-foreground">
+                        {urlSearch
+                          ? 'No branches match your search query. Try clearing or resetting the search.'
+                          : 'You haven’t created any branches yet. Click "Add Location" to get started.'}
+                      </p>
+                    </div>
+                    {urlSearch ? (
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        onClick={() => {
+                          setSearchTerm('');
+                          startTransition(() => {
+                            router.push(pathname);
+                          });
+                        }}
+                        className="rounded-xl text-xs gap-1.5 mt-1 cursor-pointer"
+                      >
+                        <IconRotateClockwise size={14} />
+                        <span>Reset Search</span>
+                      </Button>
+                    ) : (
+                      <Button
+                        onClick={handleOpenAddDialog}
+                        size="sm"
+                        className="rounded-xl text-xs font-semibold gap-1.5 mt-1 cursor-pointer"
+                      >
+                        <IconPlus size={14} />
+                        <span>Add Location</span>
+                      </Button>
+                    )}
                   </div>
                 </TableCell>
               </TableRow>
             )}
           </TableBody>
         </Table>
+
+        {/* Unified Table Pagination Bar */}
+        <TablePaginationBar
+          total={totalItems}
+          page={safePage}
+          limit={limit}
+          noun="branches"
+          syncToUrl={true}
+        />
       </div>
 
       {/* Add / Edit Modal Dialog */}
