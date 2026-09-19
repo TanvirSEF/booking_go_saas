@@ -1,7 +1,8 @@
 import React from 'react';
 import type { Metadata } from 'next';
 import { redirect } from 'next/navigation';
-import { auth } from '@/auth';
+import { requireRole } from '@/lib/guards';
+import { ACCESS, ROLES } from '@/lib/roles';
 import { connectToDatabase } from '@/lib/db';
 import { User } from '@/models/User';
 import { Business } from '@/models/Business';
@@ -16,11 +17,7 @@ export const metadata: Metadata = {
 };
 
 export default async function CustomFieldsPage() {
-  const session = await auth();
-
-  if (!session?.user?.id) {
-    redirect('/login?callbackUrl=/dashboard/custom-fields');
-  }
+  const session = await requireRole(ACCESS.company, '/dashboard/custom-fields');
 
   await connectToDatabase();
 
@@ -30,7 +27,7 @@ export default async function CustomFieldsPage() {
   }
 
   const companyId =
-    user.role === 'company'
+    user.role === ROLES.COMPANY
       ? user._id
       : user.companyId || null;
 
@@ -41,7 +38,7 @@ export default async function CustomFieldsPage() {
   // Fetch active business context & fields concurrently
   const [activeBusiness, fieldsRes] = await Promise.all([
     user.activeBusinessId
-      ? Business.findById(user.activeBusinessId).select('name slug').lean()
+      ? Business.findOne({ _id: user.activeBusinessId, companyId }).select('name slug').lean()
       : Business.findOne({ companyId }).select('name slug').lean(),
     getCustomFieldsAction(),
   ]);

@@ -1,7 +1,8 @@
 import React from 'react';
 import type { Metadata } from 'next';
 import { redirect } from 'next/navigation';
-import { auth } from '@/auth';
+import { requireRole } from '@/lib/guards';
+import { ACCESS, ROLES } from '@/lib/roles';
 import { connectToDatabase } from '@/lib/db';
 import { User } from '@/models/User';
 import { Business } from '@/models/Business';
@@ -20,11 +21,7 @@ interface CustomersPageProps {
 }
 
 export default async function CustomersPage({ searchParams }: CustomersPageProps) {
-  const session = await auth();
-
-  if (!session?.user?.id) {
-    redirect('/login?callbackUrl=/dashboard/customers');
-  }
+  const session = await requireRole(ACCESS.company, '/dashboard/customers');
 
   await connectToDatabase();
 
@@ -34,7 +31,7 @@ export default async function CustomersPage({ searchParams }: CustomersPageProps
   }
 
   const companyId =
-    user.role === 'company'
+    user.role === ROLES.COMPANY
       ? user._id
       : user.companyId || null;
 
@@ -50,7 +47,7 @@ export default async function CustomersPage({ searchParams }: CustomersPageProps
   // Fetch active business context & initial customer records concurrently
   const [activeBusiness, customersRes] = await Promise.all([
     user.activeBusinessId
-      ? Business.findById(user.activeBusinessId).select('name slug').lean()
+      ? Business.findOne({ _id: user.activeBusinessId, companyId }).select('name slug').lean()
       : Business.findOne({ companyId }).select('name slug').lean(),
     getCompanyCustomersAction({ page, limit, search }),
   ]);
