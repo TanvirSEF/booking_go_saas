@@ -15,6 +15,7 @@ import {
   IconScissors,
   IconSwitchHorizontal,
   IconTrash,
+  IconRefresh,
   IconUsers,
 } from "@tabler/icons-react";
 import { Button } from "@/components/ui/button";
@@ -58,7 +59,7 @@ export function BusinessCardGrid({
   const [activeId, setActiveId] = React.useState<string>(
     initialActiveId || (initialBusinesses.length > 0 ? initialBusinesses[0].id : "")
   );
-  // removed unused isLoading state
+  const [isLoading, setIsLoading] = React.useState(false);
 
   // Modals
   const [isCreateOpen, setIsCreateOpen] = React.useState(false);
@@ -137,14 +138,27 @@ export function BusinessCardGrid({
           </p>
         </div>
 
-        <Button
-          onClick={() => setIsCreateOpen(true)}
-          size="sm"
-          className="font-semibold gap-1.5 shadow-2xs shrink-0"
-        >
-          <IconPlus size={16} />
-          <span>Add New Branch</span>
-        </Button>
+        <div className="flex items-center gap-2">
+          <Button
+            onClick={() => fetchBusinesses()}
+            variant="outline"
+            size="sm"
+            disabled={isLoading}
+            className="font-medium gap-1.5 shadow-2xs shrink-0 text-xs"
+          >
+            <IconRefresh size={14} className={isLoading ? "animate-spin" : ""} />
+            <span>Refresh</span>
+          </Button>
+
+          <Button
+            onClick={() => setIsCreateOpen(true)}
+            size="sm"
+            className="font-semibold gap-1.5 shadow-2xs shrink-0 text-xs"
+          >
+            <IconPlus size={15} />
+            <span>Add New Branch</span>
+          </Button>
+        </div>
       </div>
 
       {/* Grid of Cards */}
