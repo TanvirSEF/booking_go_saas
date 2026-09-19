@@ -17,6 +17,7 @@ import {
   IconSettings,
   IconSparkles,
   IconAdjustmentsHorizontal,
+  IconArticle,
   IconUsers,
   IconUsersGroup,
 } from "@tabler/icons-react";
@@ -145,6 +146,16 @@ export const companyNavigationData: SidebarGroupData[] = [
         title: "Custom Statuses",
         url: "/dashboard/custom-status",
         icon: IconAdjustmentsHorizontal,
+      },
+    ],
+  },
+  {
+    group: "Marketing & Growth",
+    items: [
+      {
+        title: "Blog Articles",
+        url: "/dashboard/blog",
+        icon: IconArticle,
       },
     ],
   },
