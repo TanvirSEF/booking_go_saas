@@ -5,6 +5,7 @@ import { connectToDatabase } from '@/lib/db';
 import { User } from '@/models/User';
 import { Business } from '@/models/Business';
 import { verifyPassword } from '@/lib/password';
+import { recordLoginAuditAction } from '@/actions/login-detail';
 
 export const { handlers, auth, signIn, signOut } = NextAuth({
   ...authConfig,
@@ -66,8 +67,35 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
       },
     }),
   ],
+  events: {
+    async signIn({ user }) {
+      try {
+        if (!user?.id) return;
+        const { headers } = await import('next/headers');
+        const headersList = await headers();
+        const forwarded = headersList.get('x-forwarded-for');
+        const realIp = headersList.get('x-real-ip');
+        const ip = forwarded ? forwarded.split(',')[0].trim() : (realIp || '127.0.0.1');
+        const userAgent = headersList.get('user-agent') || '';
+
+        await recordLoginAuditAction({
+          userId: user.id,
+          role: user.role || 'customer',
+          companyId: user.companyId || undefined,
+          businessId: user.activeBusinessId || undefined,
+          ip,
+          userAgent,
+          status: 'success',
+        });
+      } catch (err) {
+        // Non-blocking: ensure login experience is never degraded
+        console.error('Failed to record login audit during signIn event:', err);
+      }
+    },
+  },
   session: {
     strategy: 'jwt',
     maxAge: 30 * 24 * 60 * 60, // 30 days
   },
 });
+
