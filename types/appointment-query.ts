@@ -51,11 +51,16 @@ export interface AppointmentListItem {
   customerName: string;
   customerEmail: string;
   customerContact: string;
+  serviceId?: string;
   serviceName: string;
   servicePrice: number;
+  durationMinutes?: number;
+  staffId?: string;
   staffName: string;
   staffColor: string;
+  locationId?: string;
   locationName: string;
+  businessId?: string;
   status: string;
   statusColor: string;
   paymentType: string;

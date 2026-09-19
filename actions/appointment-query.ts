@@ -268,7 +268,7 @@ export async function getCompanyAppointments(
     const appointmentIds = rawAppointments.map((a) => a._id);
 
     const [services, staffs, locations, payments, customStatuses, revenueAgg] = await Promise.all([
-      Service.find({ _id: { $in: serviceIds } }).select('name price').lean(),
+      Service.find({ _id: { $in: serviceIds } }).select('name price durationMinutes').lean(),
       Staff.find({ _id: { $in: staffIds } }).select('name colorCode').lean(),
       Location.find({ _id: { $in: locationIds } }).select('name').lean(),
       AppointmentPayment.find({ appointmentId: { $in: appointmentIds } }).select('appointmentId amount status paymentType').lean(),
@@ -302,11 +302,16 @@ export async function getCompanyAppointments(
         customerName: apt.name,
         customerEmail: apt.email,
         customerContact: apt.contact,
+        serviceId: apt.serviceId ? String(apt.serviceId) : undefined,
         serviceName: service?.name || 'Standard Service',
         servicePrice: service?.price || 0,
+        durationMinutes: apt.durationMinutes || service?.durationMinutes || 30,
+        staffId: apt.staffId ? String(apt.staffId) : undefined,
         staffName: staff?.name || 'Assigned Staff',
         staffColor: staff?.colorCode || '#CEEDC1',
+        locationId: apt.locationId ? String(apt.locationId) : undefined,
         locationName: location?.name || 'Downtown Location',
+        businessId: apt.businessId ? String(apt.businessId) : undefined,
         status,
         statusColor,
         paymentType: apt.paymentType || 'Manually',
