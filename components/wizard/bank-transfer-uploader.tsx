@@ -57,6 +57,7 @@ export function BankTransferUploader({
     try {
       setIsUploading(true);
       const formData = new FormData();
+      formData.append('receipt', file);
       formData.append('file', file);
 
       const res = await uploadReceiptAction(formData);
@@ -105,20 +106,23 @@ export function BankTransferUploader({
 
   if (value) {
     return (
-      <div className="p-3.5 rounded-xl border border-emerald-500/30 bg-emerald-500/10 flex items-center justify-between">
-        <div className="flex items-center gap-2.5 overflow-hidden">
+      <div className="p-3.5 rounded-xl border border-emerald-500/30 bg-emerald-500/10 flex items-center justify-between gap-3 min-w-0 w-full overflow-hidden">
+        <div className="flex items-center gap-2.5 min-w-0 flex-1 overflow-hidden">
           <div className="w-8 h-8 rounded-lg bg-emerald-500/20 text-emerald-700 dark:text-emerald-300 flex items-center justify-center shrink-0">
             <IconCheck size={16} />
           </div>
-          <div className="min-w-0">
-            <p className="text-xs font-semibold text-foreground truncate">
+          <div className="min-w-0 flex-1 overflow-hidden">
+            <p
+              className="text-xs font-semibold text-foreground truncate max-w-full"
+              title={fileName || 'Receipt Slip Uploaded'}
+            >
               {fileName || 'Receipt Slip Uploaded'}
             </p>
-            <div className="flex items-center gap-1.5 mt-0.5">
-              <Badge variant="outline" className="text-[10px] px-1 py-0 h-4 bg-background">
+            <div className="flex items-center gap-1.5 mt-0.5 min-w-0">
+              <Badge variant="outline" className="text-[10px] px-1 py-0 h-4 bg-background shrink-0">
                 {fileSize || 'Attached'}
               </Badge>
-              <span className="text-[11px] text-emerald-600 font-medium">Ready for review</span>
+              <span className="text-[11px] text-emerald-600 font-medium truncate">Ready for review</span>
             </div>
           </div>
         </div>
@@ -129,7 +133,7 @@ export function BankTransferUploader({
           size="sm"
           onClick={handleRemove}
           disabled={disabled}
-          className="h-8 w-8 p-0 text-muted-foreground hover:text-destructive cursor-pointer"
+          className="h-8 w-8 p-0 text-muted-foreground hover:text-destructive cursor-pointer shrink-0"
         >
           <IconX size={16} />
         </Button>

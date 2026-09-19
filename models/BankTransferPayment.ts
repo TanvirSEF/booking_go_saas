@@ -131,6 +131,11 @@ const BankTransferPaymentSchema = new Schema<IBankTransferPaymentDocument>(
 BankTransferPaymentSchema.index({ companyId: 1, createdAt: -1 });
 BankTransferPaymentSchema.index({ type: 1, status: 1, createdAt: -1 });
 
+// Bust stale model cache if schema was modified without restarting server
+if (mongoose.models.BankTransferPayment && !mongoose.models.BankTransferPayment.schema.path('planId')) {
+  delete (mongoose.models as Record<string, unknown>).BankTransferPayment;
+}
+
 export const BankTransferPayment: Model<IBankTransferPaymentDocument> =
   (mongoose.models.BankTransferPayment as Model<IBankTransferPaymentDocument>) ||
   mongoose.model<IBankTransferPaymentDocument>('BankTransferPayment', BankTransferPaymentSchema);

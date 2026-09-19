@@ -341,7 +341,7 @@ export async function uploadReceiptAction(
   formData: FormData
 ): Promise<UploadReceiptResponse> {
   try {
-    const file = formData.get('receipt') as File | null;
+    const file = (formData.get('receipt') || formData.get('file')) as File | null;
     if (!file) {
       return { success: false, error: 'No receipt file provided.' };
     }
