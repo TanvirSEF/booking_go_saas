@@ -22,3 +22,4 @@ export * from './Notification';
 export * from './Blog';
 export * from './LoginDetail';
 export * from './EmailTemplate';
+export * from './ThemeSetting';
