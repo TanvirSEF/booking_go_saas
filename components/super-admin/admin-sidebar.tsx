@@ -15,6 +15,7 @@ import {
   IconSparkles,
   IconTicket,
   IconReceipt,
+  IconShieldLock,
 } from "@tabler/icons-react";
 import {
   Collapsible,
@@ -34,7 +35,6 @@ import {
   SidebarMenuSub,
   SidebarMenuSubButton,
   SidebarMenuSubItem,
-  SidebarRail,
 } from "@/components/ui/sidebar";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
@@ -279,6 +279,23 @@ export function AdminSidebar({ ...props }: React.ComponentProps<typeof Sidebar>)
               <SidebarMenuItem>
                 <SidebarMenuButton
                   asChild
+                  isActive={pathname.startsWith("/super-admin/security/logins")}
+                  className={cn(
+                    "rounded-xl font-medium",
+                    pathname.startsWith("/super-admin/security/logins") &&
+                    "bg-primary text-primary-foreground hover:bg-primary hover:text-primary-foreground"
+                  )}
+                >
+                  <Link href="/super-admin/security/logins">
+                    <IconShieldLock size={18} />
+                    <span>Security & Logins</span>
+                  </Link>
+                </SidebarMenuButton>
+              </SidebarMenuItem>
+
+              <SidebarMenuItem>
+                <SidebarMenuButton
+                  asChild
                   isActive={pathname.startsWith("/super-admin/addons")}
                   className="rounded-xl font-medium justify-between"
                 >
@@ -301,7 +318,7 @@ export function AdminSidebar({ ...props }: React.ComponentProps<typeof Sidebar>)
         </SidebarGroup>
       </SidebarContent>
 
-      <SidebarRail />
+      {/* <SidebarRail /> */}
     </Sidebar>
   );
 }

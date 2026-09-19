@@ -13,6 +13,7 @@ import { Appointment } from '../models/Appointment';
 import { AppointmentPayment } from '../models/AppointmentPayment';
 import { Subscribe } from '../models/Subscribe';
 import { Testimonial } from '../models/Testimonial';
+import { LoginDetail, type ILoginDetail } from '../models/LoginDetail';
 
 const MONGODB_URI = process.env.MONGODB_URI;
 
@@ -628,6 +629,100 @@ async function seed() {
     );
   }
   console.log(`   - Seeded ${sampleTestimonials.length} customer testimonials.`);
+
+  // 14. Seed Login Security Audit Records
+  console.log('🔒 Seeding Login Security Records...');
+  const sampleLogins: Partial<ILoginDetail>[] = [
+    {
+      userId: companyUser._id,
+      companyId: companyUser._id,
+      businessId: business._id,
+      role: 'company',
+      ip: '192.168.1.102',
+      browser: 'Chrome 128.0',
+      os: 'macOS 15.0',
+      deviceType: 'desktop',
+      city: 'San Francisco',
+      country: 'United States',
+      status: 'success',
+      loginAt: new Date(Date.now() - 10 * 60 * 1000), // 10 mins ago
+    },
+    {
+      userId: companyUser._id,
+      companyId: companyUser._id,
+      businessId: business._id,
+      role: 'company',
+      ip: '172.56.21.88',
+      browser: 'Mobile Safari 18.0',
+      os: 'iOS 18.0',
+      deviceType: 'mobile',
+      city: 'San Francisco',
+      country: 'United States',
+      status: 'success',
+      loginAt: new Date(Date.now() - 3 * 3600 * 1000), // 3 hours ago
+    },
+    {
+      userId: staff._id,
+      companyId: companyUser._id,
+      businessId: business._id,
+      role: 'staff',
+      ip: '192.168.1.144',
+      browser: 'Firefox 130.0',
+      os: 'Windows 11',
+      deviceType: 'desktop',
+      city: 'San Jose',
+      country: 'United States',
+      status: 'success',
+      loginAt: new Date(Date.now() - 6 * 3600 * 1000), // 6 hours ago
+    },
+    {
+      userId: staff._id,
+      companyId: companyUser._id,
+      businessId: business._id,
+      role: 'staff',
+      ip: '10.0.0.45',
+      browser: 'Safari 17.5',
+      os: 'iPadOS 17.5',
+      deviceType: 'tablet',
+      city: 'Oakland',
+      country: 'United States',
+      status: 'success',
+      loginAt: new Date(Date.now() - 24 * 3600 * 1000), // 1 day ago
+    },
+    {
+      userId: superAdmin._id,
+      companyId: null,
+      businessId: null,
+      role: 'super admin',
+      ip: '198.51.100.24',
+      browser: 'Chrome 128.0',
+      os: 'Linux Ubuntu',
+      deviceType: 'desktop',
+      city: 'New York',
+      country: 'United States',
+      status: 'success',
+      loginAt: new Date(Date.now() - 30 * 60 * 1000), // 30 mins ago
+    },
+    {
+      userId: customerUser._id,
+      companyId: companyUser._id,
+      businessId: business._id,
+      role: 'customer',
+      ip: '203.0.113.195',
+      browser: 'Chrome Mobile 128.0',
+      os: 'Android 14',
+      deviceType: 'mobile',
+      city: 'Chicago',
+      country: 'United States',
+      status: 'success',
+      loginAt: new Date(Date.now() - 5 * 3600 * 1000),
+    },
+  ];
+
+  for (const log of sampleLogins) {
+    await LoginDetail.create(log);
+  }
+  console.log(`   - Seeded ${sampleLogins.length} login security audit logs.`);
 
   console.log('----------------------------------------------------');
   console.log('🎉 Database seeding completed successfully!');

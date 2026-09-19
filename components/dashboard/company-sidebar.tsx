@@ -15,6 +15,7 @@ import {
   IconMapPin,
   IconScissors,
   IconSettings,
+  IconShieldLock,
   IconSparkles,
   IconAdjustmentsHorizontal,
   IconArticle,
@@ -36,7 +37,6 @@ import {
   SidebarMenuSub,
   SidebarMenuSubButton,
   SidebarMenuSubItem,
-  SidebarRail,
 } from "@/components/ui/sidebar";
 import {
   Collapsible,
@@ -189,6 +189,11 @@ export const companyNavigationData: SidebarGroupData[] = [
         title: "Company Settings",
         url: "/dashboard/settings",
         icon: IconSettings,
+      },
+      {
+        title: "Security & Logins",
+        url: "/dashboard/security/logins",
+        icon: IconShieldLock,
       },
     ],
   },
