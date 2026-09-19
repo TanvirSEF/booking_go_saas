@@ -1,6 +1,6 @@
 "use client";
 
-import { Check } from "lucide-react";
+import { IconCheck } from "@tabler/icons-react";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
@@ -71,7 +71,7 @@ export function StatusColorPicker({
               )}
               style={{ backgroundColor: preset.hex }}
             >
-              {isSelected && <Check className="w-3.5 h-3.5 text-white drop-shadow-md stroke-[3]" />}
+              {isSelected && <IconCheck size={14} className="text-white drop-shadow-md stroke-[3]" />}
             </button>
           );
         })}
