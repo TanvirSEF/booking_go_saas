@@ -197,6 +197,11 @@ export const companyNavigationData: SidebarGroupData[] = [
         icon: IconCreditCard,
       },
       {
+        title: "Email Templates",
+        url: "/dashboard/settings/email-templates",
+        icon: IconMail,
+      },
+      {
         title: "Security & Logins",
         url: "/dashboard/security/logins",
         icon: IconShieldLock,
