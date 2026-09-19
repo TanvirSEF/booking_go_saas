@@ -1,5 +1,5 @@
-import { auth } from "@/auth";
-import { redirect } from "next/navigation";
+import { requireRole } from "@/lib/guards";
+import { ACCESS } from "@/lib/roles";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
@@ -10,11 +10,7 @@ export const metadata = {
 };
 
 export default async function ProfilePage() {
-  const session = await auth();
-
-  if (!session?.user) {
-    redirect("/login?callbackUrl=/profile");
-  }
+  const session = await requireRole(ACCESS.superAdmin, "/super-admin/profile");
 
   return (
     <div className="mx-auto flex max-w-2xl flex-col gap-6">

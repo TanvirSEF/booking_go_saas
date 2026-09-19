@@ -1,7 +1,7 @@
 import { redirect } from "next/navigation";
-import { auth } from "@/auth";
-import { connectToDatabase } from "@/lib/db";
-import { Business } from "@/models/Business";
+import { requireRole, getSession } from "@/lib/guards";
+import { ACCESS, ROLES } from "@/lib/roles";
+import { getActiveBusiness } from "@/lib/business";
 import { SidebarProvider, SidebarInset } from "@/components/ui/sidebar";
 import { CompanySidebar } from "@/components/dashboard/company-sidebar";
 import { CompanyHeader } from "@/components/dashboard/company-header";
@@ -11,32 +11,23 @@ export default async function DashboardLayout({
 }: Readonly<{
   children: React.ReactNode;
 }>) {
-  const session = await auth();
+  const session = await getSession();
 
   if (!session?.user) {
     redirect("/login?callbackUrl=/dashboard");
   }
 
-  if (session.user.role === "super admin") {
-    redirect("/super-admin");
+  // Super Admin can view /dashboard only if they have an active business selected
+  if (session.user.role === ROLES.SUPER_ADMIN) {
+    if (!session.user.activeBusinessId) {
+      redirect("/super-admin");
+    }
+  } else {
+    // For non-super admins, require company or staff role
+    await requireRole(ACCESS.company, "/dashboard");
   }
 
-  await connectToDatabase();
-
-  let business = null;
-  if (session.user.activeBusinessId) {
-    business = await Business.findById(session.user.activeBusinessId)
-      .select("name slug")
-      .lean();
-  }
-
-  if (!business) {
-    business = await Business.findOne({
-      companyId: session.user.companyId || session.user.id,
-    })
-      .select("name slug")
-      .lean();
-  }
+  const business = await getActiveBusiness(session.user);
 
   return (
     <div data-theme="company" className="contents">

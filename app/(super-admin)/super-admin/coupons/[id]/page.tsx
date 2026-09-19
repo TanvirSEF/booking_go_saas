@@ -1,5 +1,6 @@
-import { notFound, redirect } from "next/navigation";
-import { auth } from "@/auth";
+import { notFound } from "next/navigation";
+import { requireRole } from "@/lib/guards";
+import { ACCESS } from "@/lib/roles";
 import { getCouponDetailsAction } from "@/actions/coupon";
 import { CouponDetailsView } from "@/components/super-admin/coupon-details-view";
 
@@ -14,12 +15,8 @@ interface CouponDetailsPageProps {
 export default async function CouponDetailsPage({
   params,
 }: CouponDetailsPageProps) {
-  const session = await auth();
-  if (!session?.user || session.user.role !== "super admin") {
-    redirect("/login");
-  }
-
   const { id } = await params;
+  await requireRole(ACCESS.superAdmin, `/super-admin/coupons/${id}`);
   const result = await getCouponDetailsAction(id);
 
   if (!result.success || !result.coupon) {

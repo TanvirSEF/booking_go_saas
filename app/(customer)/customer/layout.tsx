@@ -1,6 +1,6 @@
 import { ReactNode } from "react";
-import { redirect } from "next/navigation";
-import { auth } from "@/auth";
+import { requireRole } from "@/lib/guards";
+import { ACCESS } from "@/lib/roles";
 import { CustomerNav } from "@/components/customer/customer-nav";
 
 interface CustomerLayoutProps {
@@ -8,15 +8,7 @@ interface CustomerLayoutProps {
 }
 
 export default async function CustomerLayout({ children }: CustomerLayoutProps) {
-  const session = await auth();
-
-  if (!session?.user) {
-    redirect("/login?callbackUrl=/customer");
-  }
-
-  if (session.user.role !== "customer") {
-    redirect(session.user.role === "super admin" ? "/super-admin" : "/dashboard");
-  }
+  const session = await requireRole(ACCESS.customer, "/customer");
 
   return (
     <div className="min-h-screen bg-background text-foreground flex flex-col">
