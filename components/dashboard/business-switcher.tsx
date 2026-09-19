@@ -52,7 +52,7 @@ export function BusinessSwitcher({
     }
   }, []);
 
-  const handleDropdownOpenChange = (open: boolean) => {
+  const handleOpenChange = (open: boolean) => {
     if (open && !isLoaded) {
       fetchBranches();
     }
@@ -76,7 +76,7 @@ export function BusinessSwitcher({
 
   return (
     <>
-      <DropdownMenu onOpenChange={handleDropdownOpenChange}>
+      <DropdownMenu onOpenChange={handleOpenChange}>
         <DropdownMenuTrigger asChild>
           <Button
             variant="outline"
