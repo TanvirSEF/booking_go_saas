@@ -11,6 +11,8 @@ import { CustomStatus } from '../models/CustomStatus';
 import { Customer } from '../models/Customer';
 import { Appointment } from '../models/Appointment';
 import { AppointmentPayment } from '../models/AppointmentPayment';
+import { Subscribe } from '../models/Subscribe';
+import { Testimonial } from '../models/Testimonial';
 
 const MONGODB_URI = process.env.MONGODB_URI;
 
@@ -470,6 +472,162 @@ async function seed() {
     upcomingAppointment.name = 'Alex Rivera';
     await upcomingAppointment.save();
   }
+
+  // 12. Seed Subscribers
+  console.log('📬 Seeding Newsletter Subscribers...');
+  const sampleSubscribers = [
+    {
+      email: 'olivia.wilson@example.com',
+      theme: 'default',
+      source: 'footer',
+      status: 'active',
+    },
+    {
+      email: 'ethan.hunt@example.com',
+      theme: 'minimal',
+      source: 'popup',
+      status: 'active',
+    },
+    {
+      email: 'sophia.martinez@example.com',
+      theme: 'default',
+      source: 'embed',
+      status: 'active',
+    },
+    {
+      email: 'liam.chen@example.com',
+      theme: 'luxury',
+      source: 'footer',
+      status: 'active',
+    },
+    {
+      email: 'ava.patel@example.com',
+      theme: 'default',
+      source: 'footer',
+      status: 'active',
+    },
+    {
+      email: 'lucas.smith@example.com',
+      theme: 'minimal',
+      source: 'popup',
+      status: 'unsubscribed',
+      unsubscribedAt: new Date(Date.now() - 3 * 24 * 60 * 60 * 1000),
+    },
+    {
+      email: 'mia.johnson@example.com',
+      theme: 'default',
+      source: 'footer',
+      status: 'active',
+    },
+    {
+      email: 'noah.williams@example.com',
+      theme: 'default',
+      source: 'footer',
+      status: 'unsubscribed',
+      unsubscribedAt: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000),
+    },
+  ];
+
+  for (const sub of sampleSubscribers) {
+    await Subscribe.findOneAndUpdate(
+      { businessId: business._id, email: sub.email },
+      {
+        companyId: companyUser._id,
+        businessId: business._id,
+        email: sub.email,
+        theme: sub.theme,
+        source: sub.source,
+        status: sub.status,
+        unsubscribedAt: sub.unsubscribedAt,
+      },
+      { upsert: true, new: true }
+    );
+  }
+  console.log(`   - Seeded ${sampleSubscribers.length} newsletter subscribers.`);
+
+  // 13. Seed Customer Reviews & Testimonials
+  console.log('⭐ Seeding Customer Reviews & Testimonials...');
+  const sampleTestimonials = [
+    {
+      name: 'Sarah Jenkins',
+      title: 'Verified Client',
+      rating: 5,
+      description:
+        'Booking appointments with BookingGo has completely transformed my weekly schedule. The staff was incredibly welcoming, professional, and punctual!',
+      image: 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=150&auto=format&fit=crop&q=80',
+      isActive: true,
+      order: 0,
+    },
+    {
+      name: 'Michael Chang',
+      title: 'BMW M3 Owner',
+      rating: 5,
+      description:
+        'Top-notch attention to detail and outstanding service quality. Being able to reschedule directly from the customer portal was seamless.',
+      image: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=150&auto=format&fit=crop&q=80',
+      isActive: true,
+      order: 1,
+    },
+    {
+      name: 'Elena Rostova',
+      title: 'Frequent Visitor',
+      rating: 5,
+      description:
+        'The stylists here are world-class. My keratin treatment was done to absolute perfection. Definitely recommending to all my colleagues!',
+      image: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150&auto=format&fit=crop&q=80',
+      isActive: true,
+      order: 2,
+    },
+    {
+      name: 'David Miller',
+      title: 'Verified Client',
+      rating: 4,
+      description:
+        'Great experience overall! Quick confirmation email and receipt with a QR code made check-in at the branch super effortless.',
+      image: 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=150&auto=format&fit=crop&q=80',
+      isActive: true,
+      order: 3,
+    },
+    {
+      name: 'Jessica Taylor',
+      title: 'Corporate Member',
+      rating: 5,
+      description:
+        'Fantastic customer support and very skilled professionals. The reminder alerts ensured I never missed my slot. 5 stars all the way!',
+      image: 'https://images.unsplash.com/photo-1517841905240-472988babdf9?w=150&auto=format&fit=crop&q=80',
+      isActive: true,
+      order: 4,
+    },
+    {
+      name: 'Robert Vance',
+      title: 'Local Resident',
+      rating: 4,
+      description:
+        'Pleasant atmosphere, friendly staff, and great booking process. Looking forward to my next session.',
+      image: '',
+      isActive: false,
+      order: 5,
+    },
+  ];
+
+  for (const test of sampleTestimonials) {
+    await Testimonial.findOneAndUpdate(
+      { businessId: business._id, name: test.name },
+      {
+        companyId: companyUser._id,
+        businessId: business._id,
+        name: test.name,
+        title: test.title,
+        rating: test.rating,
+        description: test.description,
+        image: test.image,
+        isActive: test.isActive,
+        order: test.order,
+      },
+      { upsert: true, new: true }
+    );
+  }
+  console.log(`   - Seeded ${sampleTestimonials.length} customer testimonials.`);
 
   console.log('----------------------------------------------------');
   console.log('🎉 Database seeding completed successfully!');
