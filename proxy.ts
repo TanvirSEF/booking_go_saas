@@ -1,6 +1,7 @@
 import NextAuth from 'next-auth';
 import { authConfig } from './auth.config';
 import { NextResponse } from 'next/server';
+import { ROLES, ROLE_HOME, isRole, ACCESS, hasAccess } from './lib/roles';
 
 const { auth } = NextAuth(authConfig);
 
@@ -8,69 +9,63 @@ export const proxy = auth((req) => {
   const { nextUrl } = req;
   const isLoggedIn = !!req.auth;
   const role = req.auth?.user?.role;
+  const activeBusinessId = req.auth?.user?.activeBusinessId;
   const pathname = nextUrl.pathname;
 
   // 1. Auth routes (/login, /register)
   if (pathname === '/login' || pathname === '/register') {
     if (isLoggedIn) {
-      if (role === 'super admin') {
-        return NextResponse.redirect(new URL('/super-admin', nextUrl));
-      }
-      if (role === 'company') {
-        return NextResponse.redirect(new URL('/dashboard', nextUrl));
-      }
-      if (role === 'staff') {
-        return NextResponse.redirect(new URL('/staff', nextUrl));
-      }
-      return NextResponse.redirect(new URL('/customer', nextUrl));
+      const targetHome = isRole(role) ? ROLE_HOME[role] : '/unauthorized';
+      return NextResponse.redirect(new URL(targetHome, nextUrl));
     }
     return NextResponse.next();
   }
 
-  // 2. Protected Role Routes
+  // 2. Allow unauthorized and public routes
+  if (pathname === '/unauthorized') {
+    return NextResponse.next();
+  }
+
+  // Helper for redirecting unauthenticated requests with callbackUrl
+  const redirectToLogin = () => {
+    return NextResponse.redirect(
+      new URL(`/login?callbackUrl=${encodeURIComponent(pathname)}`, nextUrl)
+    );
+  };
+
+  // 3. Protected Role Routes
   if (pathname.startsWith('/super-admin')) {
-    if (!isLoggedIn) {
-      return NextResponse.redirect(
-        new URL(`/login?callbackUrl=${encodeURIComponent(pathname)}`, nextUrl)
-      );
-    }
-    if (role !== 'super admin') {
-      return NextResponse.redirect(new URL('/dashboard', nextUrl));
+    if (!isLoggedIn) return redirectToLogin();
+    if (!isRole(role)) return NextResponse.redirect(new URL('/unauthorized', nextUrl));
+    if (!hasAccess(ACCESS.superAdmin, role)) {
+      return NextResponse.redirect(new URL(ROLE_HOME[role], nextUrl));
     }
     return NextResponse.next();
   }
 
   if (pathname.startsWith('/dashboard')) {
-    if (!isLoggedIn) {
-      return NextResponse.redirect(
-        new URL(`/login?callbackUrl=${encodeURIComponent(pathname)}`, nextUrl)
-      );
-    }
-    if (role !== 'company' && role !== 'super admin') {
-      return NextResponse.redirect(
-        new URL(role === 'staff' ? '/staff' : '/customer', nextUrl)
-      );
-    }
-    return NextResponse.next();
-  }
+    if (!isLoggedIn) return redirectToLogin();
+    if (!isRole(role)) return NextResponse.redirect(new URL('/unauthorized', nextUrl));
 
-  if (pathname.startsWith('/staff')) {
-    if (!isLoggedIn) {
-      return NextResponse.redirect(
-        new URL(`/login?callbackUrl=${encodeURIComponent(pathname)}`, nextUrl)
-      );
+    // Super Admin can view /dashboard only if they have an active business selected
+    if (role === ROLES.SUPER_ADMIN) {
+      if (!activeBusinessId) {
+        return NextResponse.redirect(new URL(ROLE_HOME[ROLES.SUPER_ADMIN], nextUrl));
+      }
+      return NextResponse.next();
     }
-    if (role !== 'staff' && role !== 'company' && role !== 'super admin') {
-      return NextResponse.redirect(new URL('/customer', nextUrl));
+
+    if (!hasAccess(ACCESS.company, role)) {
+      return NextResponse.redirect(new URL(ROLE_HOME[role], nextUrl));
     }
     return NextResponse.next();
   }
 
   if (pathname.startsWith('/customer')) {
-    if (!isLoggedIn) {
-      return NextResponse.redirect(
-        new URL(`/login?callbackUrl=${encodeURIComponent(pathname)}`, nextUrl)
-      );
+    if (!isLoggedIn) return redirectToLogin();
+    if (!isRole(role)) return NextResponse.redirect(new URL('/unauthorized', nextUrl));
+    if (!hasAccess(ACCESS.customer, role)) {
+      return NextResponse.redirect(new URL(ROLE_HOME[role], nextUrl));
     }
     return NextResponse.next();
   }

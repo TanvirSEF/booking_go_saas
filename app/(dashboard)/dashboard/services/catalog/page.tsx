@@ -1,7 +1,8 @@
 import React from 'react';
 import type { Metadata } from 'next';
 import { redirect } from 'next/navigation';
-import { auth } from '@/auth';
+import { requireRole } from '@/lib/guards';
+import { ACCESS, ROLES } from '@/lib/roles';
 import { connectToDatabase } from '@/lib/db';
 import { User } from '@/models/User';
 import { Business } from '@/models/Business';
@@ -23,11 +24,7 @@ interface ServiceCatalogPageProps {
 export default async function ServiceCatalogPage({
   searchParams,
 }: ServiceCatalogPageProps) {
-  const session = await auth();
-
-  if (!session?.user?.id) {
-    redirect('/login?callbackUrl=/dashboard/services/catalog');
-  }
+  const session = await requireRole(ACCESS.company, '/dashboard/services/catalog');
 
   const { category: categoryParam } = await searchParams;
 
@@ -39,7 +36,7 @@ export default async function ServiceCatalogPage({
   }
 
   const companyId =
-    user.role === 'company'
+    user.role === ROLES.COMPANY
       ? user._id
       : user.companyId || null;
 
@@ -49,7 +46,7 @@ export default async function ServiceCatalogPage({
 
   const [activeBusiness, planLimitCheck, categoriesResult, servicesResult] = await Promise.all([
     user.activeBusinessId
-      ? Business.findById(user.activeBusinessId).select('name slug currencySymbol').lean()
+      ? Business.findOne({ _id: user.activeBusinessId, companyId }).select('name slug currencySymbol').lean()
       : Business.findOne({ companyId }).select('name slug currencySymbol').lean(),
     checkPlanLimit(companyId, 'services'),
     getCategories(),

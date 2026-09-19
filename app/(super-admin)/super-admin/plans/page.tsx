@@ -1,5 +1,5 @@
-import { redirect } from "next/navigation";
-import { auth } from "@/auth";
+import { requireRole } from "@/lib/guards";
+import { ACCESS } from "@/lib/roles";
 import { connectToDatabase } from "@/lib/db";
 import { Plan } from "@/models/Plan";
 import { PlanCardGrid } from "@/components/super-admin/plan-card-grid";
@@ -12,15 +12,7 @@ export const metadata = {
 export const revalidate = 0; // Live dynamic data
 
 export default async function PlansPage() {
-  const session = await auth();
-
-  if (!session?.user) {
-    redirect("/login?callbackUrl=/super-admin/plans");
-  }
-
-  if (session.user.role !== "super admin") {
-    redirect("/dashboard");
-  }
+  await requireRole(ACCESS.superAdmin, "/super-admin/plans");
 
   await connectToDatabase();
 

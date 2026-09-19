@@ -1,5 +1,5 @@
-import { redirect } from "next/navigation";
-import { auth } from "@/auth";
+import { requireRole } from "@/lib/guards";
+import { ACCESS, ROLES } from "@/lib/roles";
 import { connectToDatabase } from "@/lib/db";
 import { User } from "@/models/User";
 import { Business } from "@/models/Business";
@@ -28,20 +28,12 @@ function formatExpireDate(d?: Date | null): string {
 }
 
 export default async function CompaniesPage() {
-  const session = await auth();
-
-  if (!session?.user) {
-    redirect("/login?callbackUrl=/super-admin/companies");
-  }
-
-  if (session.user.role !== "super admin") {
-    redirect("/dashboard");
-  }
+  await requireRole(ACCESS.superAdmin, "/super-admin/companies");
 
   await connectToDatabase();
 
   // Fetch all company users
-  const rawCompanies = await User.find({ role: "company" })
+  const rawCompanies = await User.find({ role: ROLES.COMPANY })
     .populate("activePlanId", "name")
     .sort({ createdAt: -1 })
     .lean();

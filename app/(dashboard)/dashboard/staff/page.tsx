@@ -1,7 +1,8 @@
 import React from 'react';
 import type { Metadata } from 'next';
 import { redirect } from 'next/navigation';
-import { auth } from '@/auth';
+import { requireRole } from '@/lib/guards';
+import { ACCESS, ROLES } from '@/lib/roles';
 import { connectToDatabase } from '@/lib/db';
 import { User } from '@/models/User';
 import { Business } from '@/models/Business';
@@ -19,11 +20,7 @@ export const metadata: Metadata = {
 };
 
 export default async function StaffPage() {
-  const session = await auth();
-
-  if (!session?.user?.id) {
-    redirect('/login?callbackUrl=/dashboard/staff');
-  }
+  const session = await requireRole(ACCESS.company, '/dashboard/staff');
 
   await connectToDatabase();
 
@@ -33,7 +30,7 @@ export default async function StaffPage() {
   }
 
   const companyId =
-    user.role === 'company'
+    user.role === ROLES.COMPANY
       ? user._id
       : user.companyId || null;
 
@@ -44,7 +41,7 @@ export default async function StaffPage() {
   // Fetch staff list, locations, services, and active business in parallel
   const [activeBusiness, staffRes, locationsRes, servicesRes] = await Promise.all([
     user.activeBusinessId
-      ? Business.findById(user.activeBusinessId).select('name slug').lean()
+      ? Business.findOne({ _id: user.activeBusinessId, companyId }).select('name slug').lean()
       : Business.findOne({ companyId }).select('name slug').lean(),
     getStaffListAction(),
     getLocations(),

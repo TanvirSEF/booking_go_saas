@@ -77,3 +77,32 @@ All AI agents working on this codebase MUST strictly follow these rules:
   - **Empty States**: Centered icon circle (`size-12 rounded-full bg-muted/60`), title, description, and a "Reset Filters" button when search or filters are active.
   - **Canonical Reference Implementation**: Follow the structure in `components/appointments/appointment-data-table.tsx` whenever creating any new table or refactoring an existing table.
 
+## 11. Centralized Role-Based Access Control (RBAC) Standards
+- **Single Source of Truth**: All roles, role homes, and access policies MUST be imported exclusively from `@/lib/roles`:
+  - `ROLES` (`SUPER_ADMIN: "super admin"`, `COMPANY: "company"`, `STAFF: "staff"`, `CUSTOMER: "customer"`).
+  - `ROLE_HOME` (default destination per role).
+  - `ACCESS` allowlists (`superAdmin`, `company`, `staff`, `customer`).
+  - **NEVER hardcode raw role strings** or inline role comparison checks outside `lib/roles.ts`.
+- **Allowlists Only (Zero Blocklists)**: Every route, layout, page, action, and route handler must explicitly declare permitted roles. Never use blocklists (`role !== "super admin"`).
+- **Server Component Guards**:
+  - Every protected layout and page MUST call `await requireRole(ACCESS.<policy>, callbackUrl)` from `@/lib/guards` at the top of the component.
+  - Pages and layouts must not assume previous checks succeeded (layouts do not re-run on client navigation).
+- **Server Action & Route Handler Guards**:
+  - Server actions (`"use server"`) MUST call `await assertRole(ACCESS.<policy>)` from `@/lib/guards` at the top. They must throw an error on failure, **never call `redirect()`**.
+  - Route handlers (`route.ts`) MUST use `withRoleRoute(ACCESS.<policy>, handler)` and return `401`/`403` JSON responses.
+- **Tenant-Scoped Business Lookups**:
+  - Never execute unscoped business queries (e.g. `Business.findById(activeBusinessId)`).
+  - Always use `getActiveBusiness(session.user)` from `@/lib/business` or scope queries strictly by `companyId: session.user.companyId || session.user.id` to prevent cross-tenant data leaks.
+- **Loop-Free Redirect Strategy**:
+  - Unauthenticated users $\rightarrow$ `/login?callbackUrl=...`.
+  - Disallowed authenticated users $\rightarrow$ redirected directly to their own `ROLE_HOME[role]`.
+  - Unknown/missing roles $\rightarrow$ `/unauthorized` (which resides outside all guarded layouts).
+- **Edge Proxy Sync**: Any new protected route prefix must be registered in `proxy.ts` using `hasAccess` and `ACCESS`.
+
+## 12. Dashboard Layout, Theming & Component Consistency (Company / Customer / Super-Admin)
+- When implementing features for **Company Dashboard**, **Customer Portal**, or **Super-Admin Dashboard**, strictly adhere to existing dashboard conventions:
+  - **Layout & Design Harmony**: Match existing page headers, breadcrumbs, card paddings, font weights, and spacing established in the respective area (`app/(dashboard)`, `app/(customer)`, `app/(super-admin)`).
+  - **Shadcn UI Primitives**: Use existing Shadcn components (`@/components/ui/*`) for all inputs, dialogs, dropdowns, tables, buttons, and tooltips. Do not introduce ad-hoc primitives.
+  - **No Inline Theming or Hardcoded CSS**: Never use hardcoded hex/RGB colors, inline `style={{ ... }}` objects, or arbitrary CSS. Strictly utilize Tailwind CSS semantic tokens (`bg-background`, `bg-card`, `text-foreground`, `text-muted-foreground`, `border-border`, etc.).
+  - **Theme Continuity (Dark/Light Mode)**: Ensure all components fully support dark and light mode without contrast issues, respecting domain theme attributes (e.g. `data-theme="company"`).
+  - **Responsiveness**: Build all screens mobile-first or fully responsive across all viewport breakpoints (`sm:`, `md:`, `lg:`, `xl:`) with proper overflow handling.
