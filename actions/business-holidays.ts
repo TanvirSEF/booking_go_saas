@@ -294,7 +294,18 @@ export async function deleteBusinessHolidayRangeAction(dates: string[]): Promise
 }
 
 // Aliases matching requirements
-export const getBusinessHolidays = getBusinessHolidaysAction;
-export const addBusinessHoliday = addBusinessHolidayAction;
-export const deleteBusinessHoliday = deleteBusinessHolidayAction;
-export const deleteBusinessHolidayRange = deleteBusinessHolidayRangeAction;
+export async function getBusinessHolidays() {
+  return getBusinessHolidaysAction();
+}
+export async function addBusinessHoliday(input: {
+  date: string;
+  description?: string;
+}) {
+  return addBusinessHolidayAction(input);
+}
+export async function deleteBusinessHoliday(date: string) {
+  return deleteBusinessHolidayAction(date);
+}
+export async function deleteBusinessHolidayRange(dates: string[]) {
+  return deleteBusinessHolidayRangeAction(dates);
+}

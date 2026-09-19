@@ -26,28 +26,75 @@ import {
 // Re-exports for backwards compatibility & modular imports
 // ---------------------------------------------------------------------------
 import {
-  getBusinessHoursAction,
-  updateBusinessHoursAction,
+  getBusinessHoursAction as _getBusinessHoursAction,
+  updateBusinessHoursAction as _updateBusinessHoursAction,
 } from './business-hours';
+import {
+  getBusinessHolidaysAction as _getBusinessHolidaysAction,
+  addBusinessHolidayAction as _addBusinessHolidayAction,
+  addBusinessHolidayRangeAction as _addBusinessHolidayRangeAction,
+  deleteBusinessHolidayAction as _deleteBusinessHolidayAction,
+  deleteBusinessHolidayRangeAction as _deleteBusinessHolidayRangeAction,
+} from './business-holidays';
 import type { BusinessHourDTO } from '@/types/business-hours';
 
-export { getBusinessHoursAction, updateBusinessHoursAction };
-
-export async function updateBusinessHours(hours: BusinessHourDTO[]) {
-  return updateBusinessHoursAction(hours);
+export async function getBusinessHoursAction() {
+  return _getBusinessHoursAction();
 }
 
-export {
-  getBusinessHolidaysAction,
-  addBusinessHolidayAction,
-  addBusinessHolidayRangeAction,
-  deleteBusinessHolidayAction,
-  deleteBusinessHolidayRangeAction,
-  getBusinessHolidays,
-  addBusinessHoliday,
-  deleteBusinessHoliday,
-  deleteBusinessHolidayRange,
-} from './business-holidays';
+export async function updateBusinessHoursAction(hours: BusinessHourDTO[]) {
+  return _updateBusinessHoursAction(hours);
+}
+
+export async function updateBusinessHours(hours: BusinessHourDTO[]) {
+  return _updateBusinessHoursAction(hours);
+}
+
+export async function getBusinessHolidaysAction() {
+  return _getBusinessHolidaysAction();
+}
+
+export async function addBusinessHolidayAction(input: {
+  date: string;
+  description?: string;
+}) {
+  return _addBusinessHolidayAction(input);
+}
+
+export async function addBusinessHolidayRangeAction(input: {
+  startDate: string;
+  endDate: string;
+  description?: string;
+}) {
+  return _addBusinessHolidayRangeAction(input);
+}
+
+export async function deleteBusinessHolidayAction(date: string) {
+  return _deleteBusinessHolidayAction(date);
+}
+
+export async function deleteBusinessHolidayRangeAction(dates: string[]) {
+  return _deleteBusinessHolidayRangeAction(dates);
+}
+
+export async function getBusinessHolidays() {
+  return _getBusinessHolidaysAction();
+}
+
+export async function addBusinessHoliday(input: {
+  date: string;
+  description?: string;
+}) {
+  return _addBusinessHolidayAction(input);
+}
+
+export async function deleteBusinessHoliday(date: string) {
+  return _deleteBusinessHolidayAction(date);
+}
+
+export async function deleteBusinessHolidayRange(dates: string[]) {
+  return _deleteBusinessHolidayRangeAction(dates);
+}
 
 // ---------------------------------------------------------------------------
 // Helper Functions
