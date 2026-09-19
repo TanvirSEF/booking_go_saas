@@ -18,6 +18,7 @@ import {
   IconSparkles,
   IconAdjustmentsHorizontal,
   IconArticle,
+  IconMail,
   IconUsers,
   IconUsersGroup,
 } from "@tabler/icons-react";
@@ -121,6 +122,11 @@ export const companyNavigationData: SidebarGroupData[] = [
         title: "Customers",
         url: "/dashboard/customers",
         icon: IconUsersGroup,
+      },
+      {
+        title: "Customer Inquiries",
+        url: "/dashboard/contacts",
+        icon: IconMail,
       },
     ],
   },
