@@ -21,3 +21,4 @@ export * from './Subscribe';
 export * from './Notification';
 export * from './Blog';
 export * from './LoginDetail';
+export * from './EmailTemplate';

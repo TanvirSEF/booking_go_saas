@@ -503,3 +503,8 @@ export async function sendAppointmentReminderEmail(params: {
     fromName: params.businessName,
   });
 }
+
+// ----------------------------------------------------------------------
+// Dynamic Template Engine Re-exports
+// ----------------------------------------------------------------------
+export { renderTemplatedEmail, sendTemplatedEmail, parseEmailShortcodes } from './email-engine';
