@@ -291,6 +291,7 @@ export async function deleteSubscriberAction(
       return { success: false, error: 'Subscriber not found or already removed.' };
     }
 
+    revalidatePath('/dashboard/subscribers');
     revalidatePath('/subscribers');
 
     return {
@@ -325,6 +326,7 @@ export async function bulkDeleteSubscribersAction(
       businessId: new Types.ObjectId(businessId),
     });
 
+    revalidatePath('/dashboard/subscribers');
     revalidatePath('/subscribers');
 
     return {
