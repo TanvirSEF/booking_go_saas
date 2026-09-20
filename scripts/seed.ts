@@ -15,6 +15,7 @@ import { Subscribe } from '../models/Subscribe';
 import { Testimonial } from '../models/Testimonial';
 import { LoginDetail, type ILoginDetail } from '../models/LoginDetail';
 import { ensureDefaultLanguagesSeeded } from '../lib/translation-engine';
+import { ensureDefaultSystemSettingsSeeded } from '../lib/system-settings';
 
 const MONGODB_URI = process.env.MONGODB_URI;
 
@@ -729,6 +730,11 @@ async function seed() {
   console.log('🌐 Seeding System Languages & Baseline Translations...');
   await ensureDefaultLanguagesSeeded();
   console.log('   - Seeded 13 system languages and baseline translation dictionary.');
+
+  // 18. Seed Default System Settings
+  console.log('⚙️ Seeding Default System Configurations & Global Settings...');
+  await ensureDefaultSystemSettingsSeeded();
+  console.log('   - Seeded 9 setting groups (brand, system, payments, email, storage, recaptcha).');
 
   console.log('----------------------------------------------------');
   console.log('🎉 Database seeding completed successfully!');
