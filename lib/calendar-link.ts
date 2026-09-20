@@ -20,28 +20,31 @@ export function formatUtcDateTime(date: Date): string {
  * Parse date string and time slot into start and end Date objects
  */
 export function parseAppointmentDateTimes(
-  dateStr: string,
-  timeSlot: string
+  dateStr?: string,
+  timeSlot?: string
 ): { startDate: Date; endDate: Date } {
   let year = new Date().getFullYear();
   let month = new Date().getMonth();
   let day = new Date().getDate();
 
+  const safeDateStr = (dateStr || '').trim();
+  const safeTimeSlot = (timeSlot || '09:00 - 10:00').trim();
+
   // Try YYYY-MM-DD
-  const ymdMatch = dateStr.match(/^(\d{4})-(\d{1,2})-(\d{1,2})$/);
+  const ymdMatch = safeDateStr.match(/^(\d{4})-(\d{1,2})-(\d{1,2})$/);
   if (ymdMatch) {
     year = parseInt(ymdMatch[1], 10);
     month = parseInt(ymdMatch[2], 10) - 1;
     day = parseInt(ymdMatch[3], 10);
   } else {
     // Try DD-MM-YYYY
-    const dmyMatch = dateStr.match(/^(\d{1,2})-(\d{1,2})-(\d{4})$/);
+    const dmyMatch = safeDateStr.match(/^(\d{1,2})-(\d{1,2})-(\d{4})$/);
     if (dmyMatch) {
       day = parseInt(dmyMatch[1], 10);
       month = parseInt(dmyMatch[2], 10) - 1;
       year = parseInt(dmyMatch[3], 10);
-    } else {
-      const parsed = new Date(dateStr);
+    } else if (safeDateStr) {
+      const parsed = new Date(safeDateStr);
       if (!isNaN(parsed.getTime())) {
         year = parsed.getFullYear();
         month = parsed.getMonth();
@@ -56,8 +59,8 @@ export function parseAppointmentDateTimes(
   let endHour = 10;
   let endMinute = 0;
 
-  if (timeSlot.includes('-')) {
-    const [startPart, endPart] = timeSlot.split('-').map((t) => t.trim());
+  if (safeTimeSlot.includes('-')) {
+    const [startPart, endPart] = safeTimeSlot.split('-').map((t) => t.trim());
     const [sh, sm] = startPart.split(':').map(Number);
     const [eh, em] = endPart.split(':').map(Number);
 
@@ -65,8 +68,8 @@ export function parseAppointmentDateTimes(
     if (!isNaN(sm)) startMinute = sm;
     if (!isNaN(eh)) endHour = eh;
     if (!isNaN(em)) endMinute = em;
-  } else if (timeSlot.includes(':')) {
-    const [sh, sm] = timeSlot.trim().split(':').map(Number);
+  } else if (safeTimeSlot.includes(':')) {
+    const [sh, sm] = safeTimeSlot.trim().split(':').map(Number);
     if (!isNaN(sh)) startHour = sh;
     if (!isNaN(sm)) startMinute = sm;
     endHour = startHour + 1;

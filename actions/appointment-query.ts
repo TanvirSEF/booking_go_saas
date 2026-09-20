@@ -10,6 +10,7 @@ import { Staff } from '@/models/Staff';
 import { Location } from '@/models/Location';
 import { CustomStatus } from '@/models/CustomStatus';
 import { validateSlotAvailability } from '@/lib/booking-engine';
+import { dispatchAppointmentEmailEvent } from '@/lib/email-events';
 import type {
   CalendarEvent,
   CalendarEventsResponse,
@@ -367,6 +368,11 @@ export async function updateAppointmentStatus(
     appointment.appointmentStatus = newStatus.trim();
     await appointment.save();
 
+    // Dispatch status update email event asynchronously
+    void dispatchAppointmentEmailEvent('appointment_status_changed', appointment._id, {
+      status: newStatus.trim(),
+    }).catch((err) => console.error('[EmailEvents] Status update email dispatch failed:', err));
+
     return {
       success: true,
       message: `Appointment ${appointment.appointmentNumber} status updated to ${newStatus}.`,
@@ -428,6 +434,13 @@ export async function rescheduleAppointment(
 
     await appointment.save();
 
+    // Dispatch reschedule email event asynchronously
+    void dispatchAppointmentEmailEvent('appointment_rescheduled', appointment._id, {
+      status: appointment.appointmentStatus,
+      new_date: input.newDate,
+      new_time: input.newTime,
+    }).catch((err) => console.error('[EmailEvents] Reschedule email dispatch failed:', err));
+
     return {
       success: true,
       message: `Appointment ${appointment.appointmentNumber} successfully rescheduled to ${input.newDate} (${input.newTime}).`,
@@ -472,6 +485,12 @@ export async function cancelAppointment(
     }
 
     await appointment.save();
+
+    // Dispatch cancellation email event asynchronously
+    void dispatchAppointmentEmailEvent('appointment_cancelled', appointment._id, {
+      status: 'Cancelled',
+      cancellation_reason: reason || '',
+    }).catch((err) => console.error('[EmailEvents] Cancellation email dispatch failed:', err));
 
     return {
       success: true,

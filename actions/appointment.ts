@@ -13,7 +13,7 @@ import { AppointmentPayment } from '@/models/AppointmentPayment';
 import { Counter } from '@/models/Counter';
 import { validateSlotAvailability, normalizeDateString } from '@/lib/booking-engine';
 import { hashPassword, verifyPassword } from '@/lib/password';
-import { sendBookingConfirmationEmail } from '@/lib/mailer';
+import { dispatchAppointmentEmailEvent } from '@/lib/email-events';
 
 export interface CreateAppointmentInput {
   businessId: string;
@@ -298,24 +298,9 @@ export async function createAppointment(
       status: isServiceFree ? 'completed' : 'pending',
     });
 
-    // Fire automated email confirmation asynchronously
-    void sendBookingConfirmationEmail({
-      customerName: normalizedName,
-      customerEmail: normalizedEmail,
-      appointmentNumber,
-      serviceName: service.name,
-      servicePrice: service.price || 0,
-      staffName: staffMember.name,
-      locationName: location.name,
-      locationAddress: location.address,
-      date: normalizedDate,
-      time,
-      durationMinutes: duration,
-      paymentType,
-      paymentStatus: appointment.paymentStatus,
-      businessName: business.name,
-      businessSlug: business.slug,
-    }).catch((err) => console.error('[Mailer] Booking confirmation notification failed:', err));
+    // Fire automated templated email event to customer and assigned staff asynchronously
+    void dispatchAppointmentEmailEvent('appointment_created', appointment._id)
+      .catch((err) => console.error('[EmailEvents] Booking confirmation dispatch failed:', err));
 
     return {
       success: true,

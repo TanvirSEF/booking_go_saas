@@ -12,6 +12,7 @@ import '@/models/Staff';
 import '@/models/Location';
 import { User } from '@/models/User';
 import { Business } from '@/models/Business';
+import { dispatchAppointmentEmailEvent } from '@/lib/email-events';
 import type {
   AdminAppointmentDTO,
   AppointmentFilterParams,
@@ -269,6 +270,12 @@ export async function verifyBankTransferSlipAction(
       );
     }
 
+    // Dispatch transactional email event asynchronously
+    const targetEvent = validated.decision === 'approve' ? 'appointment_status_changed' : 'appointment_cancelled';
+    void dispatchAppointmentEmailEvent(targetEvent, appointment._id, {
+      status: appointment.appointmentStatus,
+    }).catch((err) => console.error('[EmailEvents] Bank slip decision email dispatch failed:', err));
+
     revalidatePath('/dashboard/appointments');
     revalidatePath('/dashboard');
 
@@ -317,6 +324,12 @@ export async function updateAppointmentStatusAction(
     appointment.appointmentStatus = status;
     appointment.statusColor = colorMap[status] || '#21c9b0';
     await appointment.save();
+
+    // Dispatch transactional email event asynchronously
+    const targetEvent = status === 'Cancelled' ? 'appointment_cancelled' : 'appointment_status_changed';
+    void dispatchAppointmentEmailEvent(targetEvent, appointment._id, {
+      status,
+    }).catch((err) => console.error('[EmailEvents] Status update email dispatch failed:', err));
 
     revalidatePath('/dashboard/appointments');
     revalidatePath('/dashboard');
