@@ -21,6 +21,8 @@ export interface StaffMemberDTO {
   companyId: string;
   businessId: string;
   userId?: string;
+  roleId?: string;
+  roleName?: string;
   name: string;
   email?: string;
   phone?: string;
@@ -39,6 +41,7 @@ export interface CreateStaffInput {
   name: string;
   email?: string;
   phone?: string;
+  roleId?: string;
   locationIds: string[];
   serviceIds: string[];
   description?: string;
@@ -52,6 +55,7 @@ export interface UpdateStaffInput {
   name?: string;
   email?: string;
   phone?: string;
+  roleId?: string;
   locationIds?: string[];
   serviceIds?: string[];
   description?: string;

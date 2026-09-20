@@ -11,6 +11,8 @@ export interface IStaff {
   businessId: Types.ObjectId;
   userId: Types.ObjectId;
   name: string;
+  roleId?: Types.ObjectId;
+  customPermissions?: string[];
   locationIds: Types.ObjectId[];
   serviceIds: Types.ObjectId[];
   description?: string;
@@ -48,6 +50,18 @@ const StaffSchema = new Schema<IStaffDocument>(
       required: true,
       trim: true,
     },
+    roleId: {
+      type: Schema.Types.ObjectId,
+      ref: 'Role',
+      default: null,
+      index: true,
+    },
+    customPermissions: [
+      {
+        type: String,
+        trim: true,
+      },
+    ],
     locationIds: [
       {
         type: Schema.Types.ObjectId,

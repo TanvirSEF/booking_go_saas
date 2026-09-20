@@ -8,6 +8,8 @@ import { connectToDatabase } from '@/lib/db';
 import { Staff, STAFF_DEFAULT_COLORS } from '@/models/Staff';
 import { User } from '@/models/User';
 import { Business } from '@/models/Business';
+import { Role } from '@/models/Role';
+import { ensureDefaultRolesForCompany } from '@/lib/permissions';
 import '@/models/Location';
 import '@/models/Service';
 import { Appointment } from '@/models/Appointment';
@@ -25,6 +27,7 @@ const createStaffSchema = z.object({
   name: z.string().min(2, 'Name must be at least 2 characters').trim(),
   email: z.string().email('Invalid email address').optional().or(z.literal('')),
   phone: z.string().optional().default(''),
+  roleId: z.string().optional(),
   locationIds: z.array(z.string()).default([]),
   serviceIds: z.array(z.string()).default([]),
   description: z.string().optional().default(''),
@@ -38,6 +41,7 @@ const updateStaffSchema = z.object({
   name: z.string().min(2, 'Name must be at least 2 characters').trim().optional(),
   email: z.string().email('Invalid email address').optional().or(z.literal('')),
   phone: z.string().optional(),
+  roleId: z.string().optional(),
   locationIds: z.array(z.string()).optional(),
   serviceIds: z.array(z.string()).optional(),
   description: z.string().optional(),
@@ -99,6 +103,7 @@ export async function getStaffListAction(): Promise<StaffListResponse> {
     const [staffDocs, quota] = await Promise.all([
       Staff.find({ companyId, businessId })
         .populate<{ userId: { _id?: Types.ObjectId; email?: string; mobileNo?: string } }>('userId', 'email mobileNo')
+        .populate<{ roleId: { _id?: Types.ObjectId; name?: string } }>('roleId', 'name')
         .populate<{ locationIds: Array<{ _id: Types.ObjectId; name: string }> }>('locationIds', 'name')
         .populate<{ serviceIds: Array<{ _id: Types.ObjectId; name: string; price: number; duration: number }> }>('serviceIds', 'name price duration')
         .sort({ createdAt: -1 })
@@ -108,6 +113,7 @@ export async function getStaffListAction(): Promise<StaffListResponse> {
 
     const data: StaffMemberDTO[] = staffDocs.map((doc) => {
       const user = doc.userId as { _id?: Types.ObjectId; email?: string; mobileNo?: string } | null;
+      const role = doc.roleId as { _id?: Types.ObjectId; name?: string } | null;
       const locations = (doc.locationIds || []) as unknown as Array<{ _id: Types.ObjectId; name: string }>;
       const services = (doc.serviceIds || []) as unknown as Array<{ _id: Types.ObjectId; name: string; price?: number; duration?: number }>;
 
@@ -116,6 +122,8 @@ export async function getStaffListAction(): Promise<StaffListResponse> {
         companyId: String(doc.companyId),
         businessId: String(doc.businessId),
         userId: user?._id ? String(user._id) : undefined,
+        roleId: role?._id ? String(role._id) : undefined,
+        roleName: role?.name || 'Staff Specialist',
         name: doc.name,
         email: user?.email || '',
         phone: user?.mobileNo || '',
@@ -179,6 +187,22 @@ export async function createStaffAction(input: CreateStaffInput): Promise<StaffA
       : `staff_${Date.now()}_${Math.random().toString(36).substring(2, 7)}@system.booking-go.internal`;
 
     const existingUser = await User.findOne({ email: targetEmail });
+    // Resolve role assignment
+    let assignedRoleId: Types.ObjectId | undefined;
+    if (validated.roleId) {
+      const role = await Role.findOne({ _id: validated.roleId, companyId });
+      if (role) {
+        assignedRoleId = role._id as Types.ObjectId;
+      }
+    }
+    if (!assignedRoleId) {
+      await ensureDefaultRolesForCompany(companyId);
+      const defaultRole = await Role.findOne({ companyId, systemKey: 'staff' });
+      if (defaultRole) {
+        assignedRoleId = defaultRole._id as Types.ObjectId;
+      }
+    }
+
     if (existingUser) {
       // Check if user is already assigned to a staff profile in this business
       const existingStaff = await Staff.findOne({ userId: existingUser._id, businessId });
@@ -189,6 +213,9 @@ export async function createStaffAction(input: CreateStaffInput): Promise<StaffA
         };
       }
       staffUserId = existingUser._id as Types.ObjectId;
+      if (assignedRoleId) {
+        await User.findByIdAndUpdate(staffUserId, { roleId: assignedRoleId });
+      }
     } else {
       const hashedPassword = validated.password
         ? await hashPassword(validated.password)
@@ -200,6 +227,7 @@ export async function createStaffAction(input: CreateStaffInput): Promise<StaffA
         password: hashedPassword,
         mobileNo: validated.phone || '',
         role: 'staff',
+        roleId: assignedRoleId,
         companyId,
         activeBusinessId: businessId,
         isActive: validated.isActive,
@@ -218,6 +246,7 @@ export async function createStaffAction(input: CreateStaffInput): Promise<StaffA
       companyId,
       businessId,
       userId: staffUserId,
+      roleId: assignedRoleId,
       name: validated.name,
       locationIds: validated.locationIds.map((id) => new Types.ObjectId(id)),
       serviceIds: validated.serviceIds.map((id) => new Types.ObjectId(id)),
@@ -287,6 +316,15 @@ export async function updateStaffAction(input: UpdateStaffInput): Promise<StaffA
     }
     if (validated.serviceIds !== undefined) {
       staff.serviceIds = validated.serviceIds.map((id) => new Types.ObjectId(id));
+    }
+    if (validated.roleId !== undefined) {
+      if (validated.roleId) {
+        const role = await Role.findOne({ _id: validated.roleId, companyId });
+        if (role) {
+          staff.roleId = role._id as Types.ObjectId;
+          await User.findByIdAndUpdate(staff.userId, { roleId: role._id });
+        }
+      }
     }
 
     await staff.save();

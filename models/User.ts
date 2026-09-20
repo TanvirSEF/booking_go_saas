@@ -8,6 +8,7 @@ export interface IUser {
   password?: string;
   mobileNo?: string;
   role: UserRole;
+  roleId?: Types.ObjectId;
   companyId?: Types.ObjectId;
   activeBusinessId?: Types.ObjectId;
   avatar?: string;
@@ -56,6 +57,12 @@ const UserSchema = new Schema<IUserDocument>(
       type: String,
       enum: ['super admin', 'company', 'staff', 'customer'],
       default: 'customer',
+      index: true,
+    },
+    roleId: {
+      type: Schema.Types.ObjectId,
+      ref: 'Role',
+      default: null,
       index: true,
     },
     companyId: {
