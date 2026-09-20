@@ -34,6 +34,7 @@ export interface CreateAppointmentInput {
   notes?: string;
   attachment?: string;
   customFields?: Record<string, unknown>;
+  recaptchaToken?: string;
 }
 
 export interface BookingResponse {
@@ -109,6 +110,18 @@ export async function createAppointment(
       !contact
     ) {
       return { success: false, error: 'All primary booking fields are required.' };
+    }
+
+    // Validate Google reCAPTCHA (bypassed if disabled or in dev)
+    const { verifyRecaptchaToken } = await import('@/lib/recaptcha');
+    const recaptchaCheck = await verifyRecaptchaToken(data.recaptchaToken, {
+      expectedAction: 'book_appointment',
+    });
+    if (!recaptchaCheck.success) {
+      return {
+        success: false,
+        error: recaptchaCheck.error || 'reCAPTCHA verification failed. Please try again.',
+      };
     }
 
     const normalizedEmail = email.toLowerCase().trim();

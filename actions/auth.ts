@@ -45,7 +45,19 @@ export async function registerCompanyAction(
       return { success: false, error: firstError };
     }
 
-    const { name, email, password, businessName, mobileNo } = validation.data;
+    const { name, email, password, businessName, mobileNo, recaptchaToken } = validation.data;
+
+    // 2. Validate Google reCAPTCHA (bypasses gracefully if disabled or in test env)
+    const { verifyRecaptchaToken } = await import('@/lib/recaptcha');
+    const recaptchaCheck = await verifyRecaptchaToken(recaptchaToken, {
+      expectedAction: 'register',
+    });
+    if (!recaptchaCheck.success) {
+      return {
+        success: false,
+        error: recaptchaCheck.error || 'reCAPTCHA verification failed. Please try again.',
+      };
+    }
 
     await connectToDatabase();
 

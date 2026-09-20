@@ -25,6 +25,7 @@ const submitContactInquirySchema = z.object({
   subject: z.string().min(2, 'Subject must be at least 2 characters').max(200).trim(),
   message: z.string().min(5, 'Message must be at least 5 characters').trim(),
   theme: z.string().trim().optional().default('default'),
+  recaptchaToken: z.string().trim().optional(),
 });
 
 const updateInquiryStatusSchema = z.object({
@@ -87,6 +88,18 @@ export async function submitPublicContactInquiryAction(
     await connectToDatabase();
 
     const input = submitContactInquirySchema.parse(rawInput);
+
+    // Validate Google reCAPTCHA (gracefully bypassed if disabled or in dev)
+    const { verifyRecaptchaToken } = await import('@/lib/recaptcha');
+    const recaptchaCheck = await verifyRecaptchaToken(input.recaptchaToken, {
+      expectedAction: 'contact_us',
+    });
+    if (!recaptchaCheck.success) {
+      return {
+        success: false,
+        error: recaptchaCheck.error || 'reCAPTCHA verification failed. Please try again.',
+      };
+    }
 
     // Resolve target business storefront
     const business = await Business.findOne({

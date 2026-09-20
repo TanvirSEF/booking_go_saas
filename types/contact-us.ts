@@ -22,6 +22,7 @@ export interface SubmitContactInquiryInput {
   subject: string;
   message: string;
   theme?: string;
+  recaptchaToken?: string;
 }
 
 export interface UpdateInquiryStatusInput {

@@ -24,6 +24,7 @@ export const registerCompanySchema = z.object({
     .string()
     .optional()
     .or(z.literal('')),
+  recaptchaToken: z.string().trim().optional(),
 });
 
 export type RegisterCompanyInput = z.infer<typeof registerCompanySchema>;
