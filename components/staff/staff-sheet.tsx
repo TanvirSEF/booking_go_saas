@@ -14,6 +14,13 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Switch } from '@/components/ui/switch';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
 import { toast } from 'sonner';
 import {
   IconAlertTriangle,
@@ -25,8 +32,11 @@ import {
   IconMapPin,
   IconPhone,
   IconScissors,
+  IconShieldLock,
   IconUser,
 } from '@tabler/icons-react';
+import { getCompanyRolesAction } from '@/actions/role-permission';
+import type { RoleDTO } from '@/types/role-permission';
 import {
   createStaffAction,
   updateStaffAction,
@@ -59,6 +69,7 @@ interface StaffFormContentProps {
 
 interface StaffFormState {
   name: string;
+  roleId?: string;
   email: string;
   phone: string;
   password: string;
@@ -80,6 +91,7 @@ function StaffFormContent({
 
   const [form, setForm] = useState<StaffFormState>({
     name: staff?.name || '',
+    roleId: staff?.roleId || '',
     email: staff?.email || '',
     phone: staff?.phone || '',
     password: '',
@@ -90,7 +102,22 @@ function StaffFormContent({
     isActive: staff?.isActive ?? true,
   });
 
+  const [roles, setRoles] = useState<RoleDTO[]>([]);
   const [errors, setErrors] = useState<Record<string, string>>({});
+
+  React.useEffect(() => {
+    async function loadRoles() {
+      try {
+        const res = await getCompanyRolesAction();
+        if (res.success && res.data) {
+          setRoles(res.data);
+        }
+      } catch {
+        // silent
+      }
+    }
+    loadRoles();
+  }, []);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [quotaWarning, setQuotaWarning] = useState<string | null>(null);
 
@@ -125,6 +152,7 @@ function StaffFormContent({
         const payload: UpdateStaffInput = {
           id: staff._id,
           name: form.name.trim(),
+          roleId: form.roleId || undefined,
           email: form.email.trim() || undefined,
           phone: form.phone.trim(),
           locationIds: form.locationIds,
@@ -146,6 +174,7 @@ function StaffFormContent({
         const payload: CreateStaffInput = {
           name: form.name.trim(),
           email: form.email.trim() || undefined,
+          roleId: form.roleId || undefined,
           phone: form.phone.trim(),
           password: form.password || undefined,
           locationIds: form.locationIds,
@@ -289,6 +318,37 @@ function StaffFormContent({
               )}
             </div>
           )}
+
+          {/* Assigned Role & Permissions */}
+          <div className="space-y-1.5">
+            <Label htmlFor="staff-role" className="text-xs font-semibold flex items-center gap-1.5 text-foreground">
+              <IconShieldLock size={14} className="text-primary" />
+              <span>Assigned Role & Permissions</span>
+            </Label>
+            <Select
+              value={form.roleId || "default"}
+              onValueChange={(val) => setForm((prev) => ({ ...prev, roleId: val === "default" ? "" : val }))}
+            >
+              <SelectTrigger id="staff-role" className="h-10 rounded-xl text-xs">
+                <SelectValue placeholder="Select a role (e.g. Staff, Manager)" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="default" className="text-xs text-muted-foreground">
+                  Standard Staff (Default Platform Access)
+                </SelectItem>
+                {roles.map((r) => (
+                  <SelectItem key={r.id} value={r.id} className="text-xs">
+                    <span className="font-semibold">{r.name}</span>
+                    {r.isDefault && <span className="ml-1.5 text-[10px] text-muted-foreground">(Default)</span>}
+                    <span className="ml-2 text-[10px] text-muted-foreground">• {r.permissions.length} perms</span>
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <p className="text-[11px] text-muted-foreground">
+              Determines what features and operations this specialist can access in the portal.
+            </p>
+          </div>
 
           {/* Assigned Locations */}
           <div className="space-y-1.5">
