@@ -6,7 +6,7 @@ import fs from 'fs/promises';
 import crypto from 'crypto';
 import { revalidatePath } from 'next/cache';
 import { connectToDatabase } from '@/lib/db';
-import { stripe } from '@/lib/stripe';
+import { stripe, getStripeClient } from '@/lib/stripe';
 import { Appointment } from '@/models/Appointment';
 import { AppointmentPayment } from '@/models/AppointmentPayment';
 import { Business } from '@/models/Business';
@@ -195,7 +195,8 @@ export async function createAppointmentStripeSessionAction(
       cancelUrl ||
       `${appUrl}/appointments/${business.slug}?payment=cancelled&appointmentNumber=${appointment.appointmentNumber}`;
 
-    const session = await stripe.checkout.sessions.create({
+    const stripeClient = await getStripeClient().catch(() => stripe);
+    const session = await stripeClient.checkout.sessions.create({
       payment_method_types: ['card'],
       mode: 'payment',
       customer_email: appointment.email,
@@ -251,7 +252,8 @@ export async function verifyAppointmentStripePaymentAction(
       return { success: false, error: 'Session ID is required.' };
     }
 
-    const session = await stripe.checkout.sessions.retrieve(sessionId.trim());
+    const stripeClient = await getStripeClient().catch(() => stripe);
+    const session = await stripeClient.checkout.sessions.retrieve(sessionId.trim());
     if (!session) {
       return { success: false, error: 'Stripe session not found.' };
     }

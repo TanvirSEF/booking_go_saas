@@ -24,26 +24,45 @@ export interface MailerResult {
 
 /**
  * Creates and caches the Nodemailer transporter singleton.
+ * Dynamically resolves SMTP credentials from environment variables or MongoDB SystemSetting.
  */
-function getTransporter() {
-  const host = process.env.SMTP_HOST;
-  const user = process.env.SMTP_USER;
-  const pass = process.env.SMTP_PASSWORD;
-  const port = Number(process.env.SMTP_PORT) || 587;
-  const secure = port === 465;
+async function getTransporter() {
+  let host = process.env.SMTP_HOST?.trim();
+  let user = process.env.SMTP_USER?.trim();
+  let pass = process.env.SMTP_PASSWORD;
+  let port = Number(process.env.SMTP_PORT) || 587;
+  let encryption = 'tls';
+
+  if (!host || !user) {
+    try {
+      const { getSystemSetting } = await import('@/lib/system-settings');
+      const dbHost = await getSystemSetting('mail_host');
+      const dbUser = await getSystemSetting('mail_username');
+      const dbPass = await getSystemSetting('mail_password');
+      const dbPort = await getSystemSetting('mail_port');
+      const dbEnc = await getSystemSetting('mail_encryption');
+
+      if (dbHost && dbHost.trim()) host = dbHost.trim();
+      if (dbUser && dbUser.trim()) user = dbUser.trim();
+      if (dbPass) pass = dbPass;
+      if (dbPort && Number(dbPort)) port = Number(dbPort);
+      if (dbEnc) encryption = dbEnc;
+    } catch {
+      // Graceful fallback if database is not reachable
+    }
+  }
 
   if (!host || !user) {
     return null; // Signals mock/development fallback
   }
 
+  const secure = port === 465 || encryption === 'ssl';
+
   return nodemailer.createTransport({
     host,
     port,
     secure,
-    auth: {
-      user,
-      pass,
-    },
+    auth: pass ? { user, pass } : undefined,
   });
 }
 
@@ -51,11 +70,26 @@ function getTransporter() {
  * Core function to send an email with graceful mock fallback.
  */
 export async function sendEmail(options: SendEmailOptions): Promise<MailerResult> {
-  const defaultFromEmail = process.env.SMTP_FROM_EMAIL || 'no-reply@bookinggo.saas';
-  const defaultFromName = process.env.SMTP_FROM_NAME || 'BookingGo Notifications';
+  let defaultFromEmail = process.env.SMTP_FROM_EMAIL?.trim();
+  let defaultFromName = process.env.SMTP_FROM_NAME?.trim();
+
+  if (!defaultFromEmail) {
+    try {
+      const { getSystemSetting } = await import('@/lib/system-settings');
+      const dbFrom = await getSystemSetting('mail_from_address');
+      const dbName = await getSystemSetting('mail_from_name');
+      if (dbFrom && dbFrom.trim()) defaultFromEmail = dbFrom.trim();
+      if (dbName && dbName.trim()) defaultFromName = dbName.trim();
+    } catch {
+      // Graceful fallback
+    }
+  }
+
+  defaultFromEmail = defaultFromEmail || 'no-reply@bookinggo.saas';
+  defaultFromName = defaultFromName || 'BookingGo Notifications';
 
   const from = `"${options.fromName || defaultFromName}" <${options.fromEmail || defaultFromEmail}>`;
-  const transporter = getTransporter();
+  const transporter = await getTransporter();
 
   // If SMTP is not configured, log to console gracefully without throwing error
   if (!transporter) {

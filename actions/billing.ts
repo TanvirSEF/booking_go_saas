@@ -3,7 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { auth } from "@/auth";
 import { connectToDatabase } from "@/lib/db";
-import { stripe } from "@/lib/stripe";
+import { stripe, getStripeClient } from "@/lib/stripe";
 import { Plan } from "@/models/Plan";
 import { User } from "@/models/User";
 import { Order } from "@/models/Order";
@@ -141,7 +141,8 @@ export async function createStripeCheckoutSession(
 
     const unitAmountCents = Math.round(finalPrice * 100);
 
-    const checkoutSession = await stripe.checkout.sessions.create({
+    const stripeClient = await getStripeClient().catch(() => stripe);
+    const checkoutSession = await stripeClient.checkout.sessions.create({
       payment_method_types: ["card"],
       mode: "subscription",
       customer_email: session.user.email || undefined,

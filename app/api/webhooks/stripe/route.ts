@@ -18,10 +18,18 @@ export async function POST(req: Request) {
   const body = await req.text();
   const signature = req.headers.get("stripe-signature");
 
-  const webhookSecret = process.env.STRIPE_WEBHOOK_SECRET;
+  let webhookSecret = process.env.STRIPE_WEBHOOK_SECRET?.trim();
+  if (!webhookSecret) {
+    try {
+      const { getSystemSetting } = await import("@/lib/system-settings");
+      webhookSecret = (await getSystemSetting("stripe_webhook_secret"))?.trim();
+    } catch {
+      // Graceful fallback
+    }
+  }
 
   if (!webhookSecret) {
-    console.error("Missing STRIPE_WEBHOOK_SECRET in environment");
+    console.error("Missing STRIPE_WEBHOOK_SECRET in environment or database settings");
     return NextResponse.json(
       { error: "Webhook secret not configured" },
       { status: 500 }
