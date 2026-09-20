@@ -1,0 +1,21 @@
+# Nixpacks configuration for BookingGo SaaS (Next.js 16 + Turbopack + pnpm)
+# Optimized for Dokploy Deployment
+
+[phases.setup]
+nixPkgs = ["nodejs_20", "pnpm"]
+
+[phases.install]
+cmds = ["pnpm install --frozen-lockfile"]
+
+[phases.build]
+cmds = ["pnpm build"]
+
+[start]
+cmd = "node_modules/.bin/next start -H 0.0.0.0 -p ${PORT:-3000}"
+
+[variables]
+NODE_ENV = "production"
+NPM_CONFIG_UPDATE_NOTIFIER = "false"
+NEXT_TELEMETRY_DISABLED = "1"
+PORT = "3000"
+HOSTNAME = "0.0.0.0"
