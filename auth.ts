@@ -11,6 +11,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
   ...authConfig,
   providers: [
     Credentials({
+      id: 'credentials',
       name: 'credentials',
       credentials: {
         email: { label: 'Email', type: 'email' },
@@ -66,6 +67,84 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         };
       },
     }),
+    Credentials({
+      id: 'impersonate',
+      name: 'impersonate',
+      credentials: {
+        ticket: { label: 'Ticket', type: 'text' },
+      },
+      async authorize(credentials) {
+        if (!credentials?.ticket) {
+          return null;
+        }
+
+        const ticket = String(credentials.ticket);
+        const { verifyImpersonationTicket } = await import('@/lib/impersonation');
+        const payload = verifyImpersonationTicket(ticket);
+        if (!payload) {
+          return null;
+        }
+
+        await connectToDatabase();
+
+        // 1. Verify admin user still exists and is super admin
+        const adminUser = await User.findById(payload.adminId);
+        if (!adminUser || adminUser.role !== 'super admin' || adminUser.isActive === false) {
+          return null;
+        }
+
+        // 2. If restore ticket, log back in as the original super admin
+        if (payload.isRestore) {
+          return {
+            id: String(adminUser._id),
+            name: adminUser.name,
+            email: adminUser.email,
+            role: adminUser.role,
+            companyId: null,
+            activeBusinessId: null,
+            activePlanId: null,
+            image: adminUser.avatar || null,
+            impersonatorAdminId: null,
+            isImpersonating: false,
+            originalAdminName: null,
+            originalAdminEmail: null,
+          };
+        }
+
+        // 3. Otherwise, log in as target company user
+        const targetUser = await User.findById(payload.targetUserId);
+        if (!targetUser || targetUser.role !== 'company' || targetUser.isActive === false) {
+          return null;
+        }
+
+        let activeBusinessId = targetUser.activeBusinessId ? String(targetUser.activeBusinessId) : null;
+        if (!activeBusinessId) {
+          const defaultBusiness = await Business.findOne({ companyId: targetUser._id })
+            .select('_id')
+            .lean();
+          if (defaultBusiness) {
+            activeBusinessId = String(defaultBusiness._id);
+            targetUser.activeBusinessId = defaultBusiness._id;
+            await targetUser.save();
+          }
+        }
+
+        return {
+          id: String(targetUser._id),
+          name: targetUser.name,
+          email: targetUser.email,
+          role: targetUser.role,
+          companyId: targetUser.companyId ? String(targetUser.companyId) : null,
+          activeBusinessId,
+          activePlanId: targetUser.activePlanId ? String(targetUser.activePlanId) : null,
+          image: targetUser.avatar || null,
+          impersonatorAdminId: String(adminUser._id),
+          isImpersonating: true,
+          originalAdminName: adminUser.name,
+          originalAdminEmail: adminUser.email,
+        };
+      },
+    }),
   ],
   events: {
     async signIn({ user }) {
@@ -98,4 +177,3 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
     maxAge: 30 * 24 * 60 * 60, // 30 days
   },
 });
-

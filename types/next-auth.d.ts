@@ -8,6 +8,10 @@ declare module 'next-auth' {
     companyId?: string | null;
     activeBusinessId?: string | null;
     activePlanId?: string | null;
+    impersonatorAdminId?: string | null;
+    isImpersonating?: boolean;
+    originalAdminName?: string | null;
+    originalAdminEmail?: string | null;
   }
 
   interface Session {
@@ -17,6 +21,10 @@ declare module 'next-auth' {
       companyId?: string | null;
       activeBusinessId?: string | null;
       activePlanId?: string | null;
+      impersonatorAdminId?: string | null;
+      isImpersonating?: boolean;
+      originalAdminName?: string | null;
+      originalAdminEmail?: string | null;
     } & DefaultSession['user'];
   }
 }
@@ -28,5 +36,9 @@ declare module 'next-auth/jwt' {
     companyId?: string | null;
     activeBusinessId?: string | null;
     activePlanId?: string | null;
+    impersonatorAdminId?: string | null;
+    isImpersonating?: boolean;
+    originalAdminName?: string | null;
+    originalAdminEmail?: string | null;
   }
 }
