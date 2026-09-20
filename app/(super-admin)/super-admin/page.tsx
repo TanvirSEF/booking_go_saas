@@ -7,10 +7,7 @@ import {
   IconTrophy,
   IconAffiliate,
 } from "@tabler/icons-react";
-import { connectToDatabase } from "@/lib/db";
-import { User } from "@/models/User";
-import { Plan } from "@/models/Plan";
-import { Order } from "@/models/Order";
+import { getSuperAdminAnalyticsAction } from "@/actions/admin-analytics";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { RecentOrdersChart } from "@/components/super-admin/recent-orders-chart";
@@ -21,43 +18,38 @@ export const metadata = {
 };
 
 export default async function SuperAdminDashboardPage() {
-  await connectToDatabase();
+  const analyticsRes = await getSuperAdminAnalyticsAction({ chartDays: 15 });
+  
+  // Fallbacks if analytics call returns an error or is uninitialized
+  const kpis = analyticsRes.data?.kpis ?? {
+    totalUsers: 0,
+    paidUsers: 0,
+    totalOrders: 0,
+    totalRevenue: 0,
+    formattedRevenue: "$0.00",
+    mrr: 0,
+    formattedMrr: "$0.00",
+    arr: 0,
+    formattedArr: "$0.00",
+    activePlansCount: 0,
+    popularPlanName: "Basic Plan",
+    pendingBankTransfers: 0,
+  };
 
-  const [totalUsers, paidUsers, totalOrders, activePlans, ordersAgg] =
-    await Promise.all([
-      User.countDocuments({ role: "company" }),
-      User.countDocuments({ role: "company", activePlanId: { $ne: null } }),
-      Order.countDocuments(),
-      Plan.countDocuments({ isEnabled: true }),
-      Order.aggregate([
-        {
-          $group: {
-            _id: null,
-            totalAmount: { $sum: "$price" },
-          },
-        },
-      ]),
-    ]);
+  const chart = analyticsRes.data?.chart ?? {
+    days: [],
+    ordersPerDay: {},
+    revenuePerDay: {},
+    maxDayOrders: 0,
+    maxDayRevenue: 0,
+  };
 
-  const totalOrderAmount = ordersAgg[0]?.totalAmount ?? 0;
-  const formattedOrderAmount = `$${totalOrderAmount},0`;
-
-  const chartDays = [
-    "02-Sep",
-    "03-Sep",
-    "04-Sep",
-    "05-Sep",
-    "06-Sep",
-    "07-Sep",
-    "08-Sep",
-    "09-Sep",
-    "10-Sep",
-    "11-Sep",
-    "12-Sep",
-    "13-Sep",
-    "14-Sep",
-    "15-Sep",
-  ];
+  const totalUsers = kpis.totalUsers;
+  const paidUsers = kpis.paidUsers;
+  const totalOrders = kpis.totalOrders;
+  const formattedOrderAmount = kpis.formattedRevenue;
+  const activePlans = kpis.activePlansCount;
+  const chartDays = chart.days;
 
   return (
     <div className="flex flex-col gap-6">
@@ -164,7 +156,7 @@ export default async function SuperAdminDashboardPage() {
             </span>
             <div className="flex flex-col">
               <span className="text-xs font-medium text-[#0d9488]/80">
-                Order Amount
+                Order Amount (MRR: {kpis.formattedMrr})
               </span>
               <span className="text-sm font-semibold text-slate-800">
                 {formattedOrderAmount}
@@ -195,15 +187,35 @@ export default async function SuperAdminDashboardPage() {
             <span className="text-base font-bold text-[#ea580c]">
               Total Plans
             </span>
-            <span className="text-xs font-medium text-[#ea580c]/80">
-              Popular Plan
-            </span>
+            <div className="flex flex-col">
+              <span className="text-xs font-medium text-[#ea580c]/80">
+                Popular Plan
+              </span>
+              <span className="text-sm font-semibold text-slate-800 truncate" title={kpis.popularPlanName}>
+                {kpis.popularPlanName}
+              </span>
+            </div>
           </div>
 
           {/* Bottom-right circular decoration */}
           <div className="pointer-events-none absolute -right-6 -bottom-6 size-20 rounded-full bg-[#f97316]/50" />
         </Card>
       </div>
+
+      {/* Pending Bank Transfers Notification Banner */}
+      {kpis.pendingBankTransfers > 0 && (
+        <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-amber-200 bg-amber-50 p-4 text-amber-800 dark:border-amber-900/50 dark:bg-amber-950/40 dark:text-amber-300">
+          <div className="flex items-center gap-3">
+            <span className="flex size-2.5 rounded-full bg-amber-500 animate-pulse" />
+            <span className="text-sm font-medium">
+              You have <strong>{kpis.pendingBankTransfers}</strong> pending bank transfer payment verification(s) waiting for review.
+            </span>
+          </div>
+          <Button asChild size="sm" variant="outline" className="h-8 border-amber-300 bg-white text-xs hover:bg-amber-100 dark:bg-amber-900 dark:hover:bg-amber-800">
+            <Link href="/super-admin/bank-transfers">Review Payments</Link>
+          </Button>
+        </div>
+      )}
 
       {/* Section 2: Recent Order */}
       <div className="mt-2 flex flex-col gap-4">
@@ -216,7 +228,7 @@ export default async function SuperAdminDashboardPage() {
           </span>
         </div>
 
-        <RecentOrdersChart chartDays={chartDays} />
+        <RecentOrdersChart chartDays={chartDays} ordersPerDay={chart.ordersPerDay} />
       </div>
     </div>
   );
