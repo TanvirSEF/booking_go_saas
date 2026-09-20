@@ -12,6 +12,8 @@ declare module 'next-auth' {
     isImpersonating?: boolean;
     originalAdminName?: string | null;
     originalAdminEmail?: string | null;
+    isEnableLogin?: boolean;
+    tokenVersion?: number;
   }
 
   interface Session {
@@ -25,6 +27,8 @@ declare module 'next-auth' {
       isImpersonating?: boolean;
       originalAdminName?: string | null;
       originalAdminEmail?: string | null;
+      isEnableLogin?: boolean;
+      tokenVersion?: number;
     } & DefaultSession['user'];
   }
 }
@@ -40,5 +44,7 @@ declare module 'next-auth/jwt' {
     isImpersonating?: boolean;
     originalAdminName?: string | null;
     originalAdminEmail?: string | null;
+    isEnableLogin?: boolean;
+    tokenVersion?: number;
   }
 }

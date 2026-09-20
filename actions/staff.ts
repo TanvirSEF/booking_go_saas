@@ -395,7 +395,14 @@ export async function toggleStaffStatusAction(id: string): Promise<StaffActionRe
     staff.isActive = !staff.isActive;
     await staff.save();
 
-    await User.findByIdAndUpdate(staff.userId, { isActive: staff.isActive });
+    const userUpdate: Record<string, unknown> = {
+      isActive: staff.isActive,
+      isEnableLogin: staff.isActive,
+    };
+    if (!staff.isActive) {
+      userUpdate.$inc = { tokenVersion: 1 };
+    }
+    await User.findByIdAndUpdate(staff.userId, userUpdate);
 
     revalidatePath('/dashboard/staff');
 

@@ -145,6 +145,10 @@ export async function toggleCompanyStatusAction(companyId: string, isActive: boo
     }
 
     company.isActive = isActive;
+    company.isEnableLogin = isActive;
+    if (!isActive) {
+      company.tokenVersion = (company.tokenVersion || 0) + 1;
+    }
     await company.save();
 
     revalidatePath("/super-admin/companies");

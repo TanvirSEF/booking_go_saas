@@ -15,6 +15,11 @@ export interface IUser {
   lang: string;
   darkMode: boolean;
   isActive: boolean;
+  isEnableLogin: boolean;
+  tokenVersion: number;
+  suspendedReason?: string;
+  suspendedAt?: Date;
+  suspendedBy?: Types.ObjectId;
   emailVerifiedAt?: Date;
   activePlanId?: Types.ObjectId;
   billingType?: 'monthly' | 'yearly';
@@ -90,6 +95,29 @@ const UserSchema = new Schema<IUserDocument>(
     isActive: {
       type: Boolean,
       default: true,
+    },
+    isEnableLogin: {
+      type: Boolean,
+      default: true,
+      index: true,
+    },
+    tokenVersion: {
+      type: Number,
+      default: 0,
+      index: true,
+    },
+    suspendedReason: {
+      type: String,
+      default: null,
+    },
+    suspendedAt: {
+      type: Date,
+      default: null,
+    },
+    suspendedBy: {
+      type: Schema.Types.ObjectId,
+      ref: 'User',
+      default: null,
     },
     emailVerifiedAt: {
       type: Date,

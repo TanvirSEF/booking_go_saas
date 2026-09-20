@@ -18,6 +18,8 @@ export const authConfig: NextAuthConfig = {
         token.isImpersonating = user.isImpersonating ?? false;
         token.originalAdminName = user.originalAdminName ?? null;
         token.originalAdminEmail = user.originalAdminEmail ?? null;
+        token.isEnableLogin = user.isEnableLogin ?? true;
+        token.tokenVersion = user.tokenVersion ?? 0;
       }
 
       if (trigger === 'update' && session) {
@@ -42,6 +44,8 @@ export const authConfig: NextAuthConfig = {
         session.user.isImpersonating = Boolean(token.impersonatorAdminId);
         session.user.originalAdminName = (token.originalAdminName as string | null) ?? null;
         session.user.originalAdminEmail = (token.originalAdminEmail as string | null) ?? null;
+        session.user.isEnableLogin = (token.isEnableLogin as boolean) ?? true;
+        session.user.tokenVersion = (token.tokenVersion as number) ?? 0;
       }
       return session;
     },

@@ -26,6 +26,11 @@ export async function requireRole(
     redirect(callbackUrl ? `/login?callbackUrl=${encodeURIComponent(callbackUrl)}` : '/login');
   }
 
+  // WorkDo parity: block disabled or suspended user accounts
+  if (session.user.isEnableLogin === false) {
+    redirect('/login?error=AccountDisabled');
+  }
+
   const role = session.user.role;
   if (!isRole(role)) {
     redirect('/unauthorized');
@@ -44,8 +49,13 @@ export async function assertRole(allowed: readonly Role[]): Promise<AppSession> 
   if (!session?.user || !isRole(role) || !allowed.includes(role)) {
     throw new Error('Forbidden');
   }
+  if (session.user.isEnableLogin === false) {
+    throw new Error('Account disabled or suspended');
+  }
   return session as AppSession;
 }
+
+export { verifyUserActiveStatus } from '@/lib/user-suspension';
 
 /** For route handlers: returns 401/403 JSON responses */
 export function withRoleRoute<Ctx>(

@@ -32,8 +32,17 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
           return null;
         }
 
-        if (user.isActive === false) {
+        // WorkDo parity: is_enable_login and isActive checks
+        if (user.isActive === false || user.isEnableLogin === false) {
           return null;
+        }
+
+        // Parent company cascade check: If parent company is disabled, block staff/customer login
+        if (user.companyId && (user.role === 'staff' || user.role === 'customer')) {
+          const company = await User.findById(user.companyId).select('isActive isEnableLogin').lean();
+          if (company && (company.isActive === false || company.isEnableLogin === false)) {
+            return null;
+          }
         }
 
         const isMatch = await verifyPassword(plainPassword, user.password);
@@ -64,6 +73,8 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
           activeBusinessId,
           activePlanId: user.activePlanId ? String(user.activePlanId) : null,
           image: user.avatar || null,
+          isEnableLogin: user.isEnableLogin ?? true,
+          tokenVersion: user.tokenVersion ?? 0,
         };
       },
     }),
@@ -108,12 +119,19 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
             isImpersonating: false,
             originalAdminName: null,
             originalAdminEmail: null,
+            isEnableLogin: adminUser.isEnableLogin ?? true,
+            tokenVersion: adminUser.tokenVersion ?? 0,
           };
         }
 
         // 3. Otherwise, log in as target company user
         const targetUser = await User.findById(payload.targetUserId);
-        if (!targetUser || targetUser.role !== 'company' || targetUser.isActive === false) {
+        if (
+          !targetUser ||
+          targetUser.role !== 'company' ||
+          targetUser.isActive === false ||
+          targetUser.isEnableLogin === false
+        ) {
           return null;
         }
 
@@ -142,6 +160,8 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
           isImpersonating: true,
           originalAdminName: adminUser.name,
           originalAdminEmail: adminUser.email,
+          isEnableLogin: targetUser.isEnableLogin ?? true,
+          tokenVersion: targetUser.tokenVersion ?? 0,
         };
       },
     }),
