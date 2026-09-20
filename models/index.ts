@@ -27,3 +27,4 @@ export * from './Language';
 export * from './Translation';
 export * from './SystemSetting';
 export * from './Role';
+export * from './LandingPageSetting';

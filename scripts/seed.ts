@@ -16,6 +16,7 @@ import { Testimonial } from '../models/Testimonial';
 import { LoginDetail, type ILoginDetail } from '../models/LoginDetail';
 import { ensureDefaultLanguagesSeeded } from '../lib/translation-engine';
 import { ensureDefaultSystemSettingsSeeded } from '../lib/system-settings';
+import { ensureLandingPageSettingsSeeded } from '../lib/landing-page';
 
 const MONGODB_URI = process.env.MONGODB_URI;
 
@@ -735,6 +736,11 @@ async function seed() {
   console.log('⚙️ Seeding Default System Configurations & Global Settings...');
   await ensureDefaultSystemSettingsSeeded();
   console.log('   - Seeded 9 setting groups (brand, system, payments, email, storage, recaptcha).');
+
+  // 19. Seed Dynamic Landing Page CMS Settings
+  console.log('📄 Seeding Landing Page CMS Settings & Default Sections...');
+  await ensureLandingPageSettingsSeeded();
+  console.log('   - Seeded 12 landing page CMS modules, default copy, and custom pages.');
 
   console.log('----------------------------------------------------');
   console.log('🎉 Database seeding completed successfully!');
