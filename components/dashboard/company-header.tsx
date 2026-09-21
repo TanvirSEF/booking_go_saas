@@ -7,7 +7,6 @@ import {
   IconChevronDown,
   IconLogout,
   IconUser,
-  IconWorld,
 } from "@tabler/icons-react";
 import { SidebarTrigger } from "@/components/ui/sidebar";
 import { Separator } from "@/components/ui/separator";
@@ -24,6 +23,7 @@ import {
 import { AnimatedThemeToggler } from "@/components/ui/animated-theme-toggler";
 import { NotificationBell } from "@/components/dashboard/notification-bell";
 import { BusinessSwitcher } from "@/components/dashboard/business-switcher";
+import { LanguageSwitcher } from "@/components/language-switcher";
 
 interface CompanyHeaderProps {
   user?: {
@@ -58,30 +58,7 @@ export function CompanyHeader({ user, businessName, businessSlug }: CompanyHeade
 
       {/* Right: Language selector + Theme toggler + Profile */}
       <div className="flex shrink-0 items-center gap-1.5 sm:gap-2.5">
-        <DropdownMenu>
-          <DropdownMenuTrigger asChild>
-            <Button
-              variant="outline"
-              size="sm"
-              className="flex h-9 shrink-0 items-center gap-1 sm:gap-1.5 rounded-lg border-border bg-card px-2 sm:px-2.5 text-xs font-medium shadow-2xs hover:bg-accent"
-            >
-              <IconWorld size={14} className="text-muted-foreground" />
-              <span>EN</span>
-              <IconChevronDown size={12} className="text-muted-foreground" />
-            </Button>
-          </DropdownMenuTrigger>
-          <DropdownMenuContent align="end" className="w-32 rounded-xl p-1 shadow-md">
-            <DropdownMenuItem className="cursor-pointer rounded-lg text-xs font-medium">
-              English (EN)
-            </DropdownMenuItem>
-            <DropdownMenuItem className="cursor-pointer rounded-lg text-xs font-medium">
-              Spanish (ES)
-            </DropdownMenuItem>
-            <DropdownMenuItem className="cursor-pointer rounded-lg text-xs font-medium">
-              French (FR)
-            </DropdownMenuItem>
-          </DropdownMenuContent>
-        </DropdownMenu>
+        <LanguageSwitcher />
 
         <NotificationBell />
 

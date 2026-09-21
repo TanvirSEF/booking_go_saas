@@ -7,7 +7,6 @@ import {
   IconChevronDown,
   IconLogout,
   IconUser,
-  IconWorld,
   IconShieldLock,
   IconSparkles,
 } from "@tabler/icons-react";
@@ -23,6 +22,7 @@ import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { AnimatedThemeToggler } from "@/components/ui/animated-theme-toggler";
+import { LanguageSwitcher } from "@/components/language-switcher";
 
 interface AdminTopbarProps {
   user?: {
@@ -110,31 +110,7 @@ export function AdminTopbar({ user }: AdminTopbarProps) {
 
       {/* Right Actions: Language & Theme Toggle */}
       <div className="flex items-center gap-3">
-        {/* Language selector */}
-        <DropdownMenu>
-          <DropdownMenuTrigger asChild>
-            <Button
-              variant="outline"
-              size="sm"
-              className="flex h-10 items-center gap-2 rounded-xl border-border bg-card px-3 text-xs font-medium shadow-2xs hover:bg-accent"
-            >
-              <IconWorld size={16} className="text-muted-foreground" />
-              <span>EN</span>
-              <IconChevronDown size={12} className="text-muted-foreground" />
-            </Button>
-          </DropdownMenuTrigger>
-          <DropdownMenuContent align="end" className="w-32 rounded-xl p-1 shadow-md">
-            <DropdownMenuItem className="cursor-pointer rounded-lg text-xs font-medium">
-              English (EN)
-            </DropdownMenuItem>
-            <DropdownMenuItem className="cursor-pointer rounded-lg text-xs font-medium">
-              Spanish (ES)
-            </DropdownMenuItem>
-            <DropdownMenuItem className="cursor-pointer rounded-lg text-xs font-medium">
-              French (FR)
-            </DropdownMenuItem>
-          </DropdownMenuContent>
-        </DropdownMenu>
+        <LanguageSwitcher />
 
         {/* Animated Theme Toggler */}
         <AnimatedThemeToggler

@@ -14,6 +14,7 @@ import {
   IconReceipt,
   IconShieldLock,
   IconBuildingBank,
+  IconWorld,
 } from "@tabler/icons-react";
 import {
   Collapsible,
@@ -133,6 +134,11 @@ export const adminNavigationData: SidebarGroupData[] = [
       //   url: "/super-admin/cms",
       //   icon: IconBox,
       // },
+      {
+        title: "Languages",
+        url: "/super-admin/languages",
+        icon: IconWorld,
+      },
       {
         title: "Settings",
         url: "/super-admin/settings",

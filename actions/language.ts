@@ -615,3 +615,40 @@ export async function importTranslationsAction(
     return { success: false, error: errorMsg };
   }
 }
+
+/**
+ * 13. Resets custom tenant translation overrides back to system baseline defaults
+ */
+export async function resetTenantTranslationsAction(params: {
+  languageCode: string;
+  group?: string;
+}): Promise<LanguageActionResult<{ deletedCount: number }>> {
+  try {
+    const user = await resolveSessionUser();
+    const companyId = user.companyId || user.userObjectId;
+
+    const filter: Record<string, unknown> = {
+      languageCode: params.languageCode.toLowerCase().trim(),
+      companyId,
+    };
+
+    if (params.group && params.group !== 'all') {
+      filter.group = params.group;
+    }
+
+    const res = await Translation.deleteMany(filter);
+
+    safeRevalidatePath('/dashboard/settings/language');
+    safeRevalidatePath('/super-admin/languages');
+
+    return {
+      success: true,
+      message: `Successfully reset ${res.deletedCount} custom override(s) back to system defaults.`,
+      data: { deletedCount: res.deletedCount },
+    };
+  } catch (error) {
+    const errorMsg = error instanceof Error ? error.message : 'Failed to reset tenant overrides';
+    return { success: false, error: errorMsg };
+  }
+}
+

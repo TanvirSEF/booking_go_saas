@@ -134,11 +134,43 @@ export const BASE_TRANSLATION_DICTIONARY: Record<string, Record<string, string>>
   },
 };
 
+import { SystemSetting } from '@/models/SystemSetting';
+
+export const SYSTEM_LANGUAGES_SEEDED_KEY = 'system_languages_seeded';
+
 /**
- * Initializes and seeds standard 13 system languages and baseline English dictionary
+ * Initializes and seeds standard 13 system languages and baseline English dictionary.
+ * Guaranteed to only run once on initial setup so that user deletions are permanent.
  */
-export async function ensureDefaultLanguagesSeeded(): Promise<void> {
+export async function ensureDefaultLanguagesSeeded(force = false): Promise<void> {
   await connectToDatabase();
+
+  if (!force) {
+    const alreadySeeded = await SystemSetting.findOne({ key: SYSTEM_LANGUAGES_SEEDED_KEY });
+    if (alreadySeeded?.value === 'yes') {
+      return;
+    }
+
+    const languageCount = await Language.countDocuments();
+    if (languageCount > 0) {
+      // System already has languages created
+      await SystemSetting.findOneAndUpdate(
+        { key: SYSTEM_LANGUAGES_SEEDED_KEY },
+        {
+          $set: {
+            key: SYSTEM_LANGUAGES_SEEDED_KEY,
+            value: 'yes',
+            group: 'system',
+            isPublic: false,
+            isSensitive: false,
+            description: 'Flag indicating default system languages have been seeded',
+          },
+        },
+        { upsert: true }
+      );
+      return;
+    }
+  }
 
   // 1. Seed system languages
   for (const item of SYSTEM_LANGUAGES) {
@@ -182,6 +214,22 @@ export async function ensureDefaultLanguagesSeeded(): Promise<void> {
       await Translation.bulkWrite(bulkOps);
     }
   }
+
+  // Mark language seeding complete in SystemSetting
+  await SystemSetting.findOneAndUpdate(
+    { key: SYSTEM_LANGUAGES_SEEDED_KEY },
+    {
+      $set: {
+        key: SYSTEM_LANGUAGES_SEEDED_KEY,
+        value: 'yes',
+        group: 'system',
+        isPublic: false,
+        isSensitive: false,
+        description: 'Flag indicating default system languages have been seeded',
+      },
+    },
+    { upsert: true }
+  );
 }
 
 /**
