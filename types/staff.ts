@@ -29,6 +29,9 @@ export interface StaffMemberDTO {
   description: string;
   colorCode: string;
   isActive: boolean;
+  isEnableLogin?: boolean;
+  suspendedReason?: string | null;
+  suspendedAt?: string | null;
   locationIds: string[];
   locations: StaffLocationSummary[];
   serviceIds: string[];

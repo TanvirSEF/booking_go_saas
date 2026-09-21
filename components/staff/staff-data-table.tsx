@@ -13,7 +13,6 @@ import {
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
-import { Switch } from '@/components/ui/switch';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -58,7 +57,10 @@ import { UserStatusDetailsModal } from '@/components/modals/user-status-details-
 import {
 } from '@/actions/user-management';
 import {
+  Tooltip,
+  TooltipContent,
   TooltipProvider,
+  TooltipTrigger,
 } from '@/components/ui/tooltip';
 import { TablePaginationBar } from '@/components/shared/table-pagination-bar';
 import type { TagOption } from './staff-tag-picker';
@@ -518,19 +520,54 @@ export function StaffDataTable({
                       </div>
                     </TableCell>
 
-                    {/* Active Status Switch */}
+                    {/* Login Access Badge */}
                     <TableCell>
-                      <div className="flex items-center gap-2">
-                        <Switch
-                          checked={stf.isActive}
-                          disabled={isLoading}
-                          onCheckedChange={() => handleToggleStatus(stf)}
-                          aria-label={`Toggle active state for ${stf.name}`}
-                        />
-                        <span className="text-xs text-muted-foreground">
-                          {stf.isActive ? 'Active' : 'Inactive'}
-                        </span>
-                      </div>
+                      <Badge
+                        variant="outline"
+                        className={
+                          stf.isEnableLogin !== false
+                            ? "border-emerald-500/20 bg-emerald-500/10 text-[10px] font-semibold text-emerald-600 dark:text-emerald-400"
+                            : "border-amber-500/20 bg-amber-500/10 text-[10px] font-semibold text-amber-600 dark:text-amber-400"
+                        }
+                      >
+                        {stf.isEnableLogin !== false ? "Login Allowed" : "Login Disabled"}
+                      </Badge>
+                    </TableCell>
+
+                    {/* Account Status Badge with Tooltip */}
+                    <TableCell>
+                      {!stf.isActive ? (
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <Badge
+                              variant="outline"
+                              className="cursor-help border-destructive/30 bg-destructive/10 text-[10px] font-semibold text-destructive"
+                            >
+                              Suspended
+                            </Badge>
+                          </TooltipTrigger>
+                          <TooltipContent className="max-w-xs text-xs">
+                            <p className="font-semibold">Account Suspended</p>
+                            {stf.suspendedReason && (
+                              <p className="mt-0.5 text-muted-foreground">
+                                Reason: {stf.suspendedReason}
+                              </p>
+                            )}
+                            {stf.suspendedAt && (
+                              <p className="mt-0.5 text-[10px] text-muted-foreground">
+                                Date: {new Date(stf.suspendedAt).toLocaleDateString()}
+                              </p>
+                            )}
+                          </TooltipContent>
+                        </Tooltip>
+                      ) : (
+                        <Badge
+                          variant="outline"
+                          className="border-emerald-500/20 bg-emerald-500/10 text-[10px] font-semibold text-emerald-600 dark:text-emerald-400"
+                        >
+                          Active
+                        </Badge>
+                      )}
                     </TableCell>
 
                     {/* Actions Menu */}

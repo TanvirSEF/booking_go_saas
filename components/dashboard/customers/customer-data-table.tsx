@@ -459,8 +459,23 @@ export function CustomerDataTable({
                       </Badge>
                     </td>
 
-                    {/* Status Badge */}
+                    {/* Login Access Badge */}
                     <td className="py-3.5 px-4 text-center">
+                      <Badge
+                        variant="outline"
+                        className={
+                          cust.isEnableLogin !== false
+                            ? "border-emerald-500/20 bg-emerald-500/10 text-[10px] font-semibold text-emerald-600 dark:text-emerald-400"
+                            : "border-amber-500/20 bg-amber-500/10 text-[10px] font-semibold text-amber-600 dark:text-amber-400"
+                        }
+                      >
+                        {cust.isEnableLogin !== false ? "Login Allowed" : "Login Disabled"}
+                      </Badge>
+                    </td>
+
+                    {/* Account Status Badge */}
+                    <td className="py-3.5 px-4 text-center">
+                      
                       {cust.isActive !== false ? (
                         <Badge className="bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 border-emerald-500/30 text-[10px] font-semibold py-0.5 px-2 rounded-full">
                           Active
@@ -486,6 +501,7 @@ export function CustomerDataTable({
                           </TooltipContent>
                         </Tooltip>
                       )}
+                    
                     </td>
 
                     {/* Total Spent */}

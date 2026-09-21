@@ -235,6 +235,8 @@ export function Step5ReviewConfirm() {
           setSubmitError(response.error || 'Failed to place appointment. Please try again.');
         }
       } catch (err: unknown) {
+        recaptchaRef.current?.reset();
+        setRecaptchaToken(null);
         setSubmitError(err instanceof Error ? err.message : 'A fatal error occurred during booking.');
       }
     });
