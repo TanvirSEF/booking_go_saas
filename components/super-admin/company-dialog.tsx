@@ -42,6 +42,9 @@ export interface CompanyItem {
   name: string;
   email: string;
   isActive: boolean;
+  isEnableLogin?: boolean;
+  suspendedReason?: string | null;
+  suspendedAt?: string | null;
   role: string;
   businessName?: string;
   businessSlug?: string;

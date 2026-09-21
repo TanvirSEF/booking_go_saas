@@ -120,6 +120,7 @@ export async function getCompanyCustomersAction(
     const [total, rawCustomers] = await Promise.all([
       Customer.countDocuments(baseFilter),
       Customer.find(baseFilter)
+        .populate<{ userId: { _id?: Types.ObjectId; email?: string; isActive?: boolean; isEnableLogin?: boolean; suspendedReason?: string; suspendedAt?: Date } }>('userId', 'email isActive isEnableLogin suspendedReason suspendedAt')
         .sort({ createdAt: -1 })
         .skip(skip)
         .limit(limit)
@@ -196,12 +197,18 @@ export async function getCompanyCustomersAction(
       const idKey = String(c._id);
       const emailKey = c.email.toLowerCase();
       const stats = statsMap.get(idKey) || statsMap.get(emailKey) || { total: 0, completed: 0, spent: 0, lastDate: null };
+      const user = c.userId as { _id?: Types.ObjectId; email?: string; isActive?: boolean; isEnableLogin?: boolean; suspendedReason?: string; suspendedAt?: Date } | null;
 
       return {
         id: String(c._id),
+        userId: user?._id ? String(user._id) : undefined,
         name: c.name,
         email: c.email,
         contact: c.contact,
+        isActive: user ? user.isActive !== false : true,
+        isEnableLogin: user ? user.isEnableLogin !== false : true,
+        suspendedReason: user?.suspendedReason || undefined,
+        suspendedAt: user?.suspendedAt ? user.suspendedAt.toISOString() : undefined,
         gender: c.gender || '',
         dob: c.dob || '',
         description: c.description || '',

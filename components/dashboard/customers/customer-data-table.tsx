@@ -15,6 +15,18 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { DeleteConfirmDialog } from '@/components/dashboard/services/delete-confirm-dialog';
+import { SuspendUserModal } from '@/components/modals/suspend-user-modal';
+import { UserStatusDetailsModal } from '@/components/modals/user-status-details-modal';
+import {
+  toggleUserLoginAccessAction,
+  reactivateUserAction,
+} from '@/actions/user-management';
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from '@/components/ui/tooltip';
 import { CustomerSpendBadge } from './customer-spend-badge';
 import { CustomerDetailsDrawer } from './customer-details-drawer';
 import { CreateCustomerSheet } from './create-customer-sheet';
@@ -33,6 +45,11 @@ import {
   IconUsers,
   IconLoader2,
   IconCalendarEvent,
+  IconLock,
+  IconLockOpen,
+  IconShieldLock,
+  IconUserCheck,
+  IconUserX,
   IconRotateClockwise,
 } from '@tabler/icons-react';
 import { toast } from 'sonner';
@@ -42,7 +59,7 @@ import {
 import { exportCustomersCsvAction } from '@/actions/export';
 import type { CustomerCRMItem } from '@/types/customer-crm';
 
-interface CustomerDataTableProps {
+export interface CustomerDataTableProps {
   initialCustomers: CustomerCRMItem[];
   totalRecords: number;
   page?: number;
@@ -98,6 +115,66 @@ export function CustomerDataTable({
 
   // Deletion state
   const [customerToDelete, setCustomerToDelete] = useState<CustomerCRMItem | null>(null);
+
+  // Suspension & Security Modals
+  const [suspendModalState, setSuspendModalState] = useState<{ open: boolean; userId: string; name: string; email?: string }>({
+    open: false,
+    userId: '',
+    name: '',
+    email: '',
+  });
+  const [securityModalState, setSecurityModalState] = useState<{ open: boolean; userId: string; name: string }>({
+    open: false,
+    userId: '',
+    name: '',
+  });
+  const [, setActionLoadingId] = useState<string | null>(null);
+
+  const handleToggleLogin = async (userId: string) => {
+    setActionLoadingId(userId);
+    try {
+      const res = await toggleUserLoginAccessAction({ userId });
+      if (res.success) {
+        toast.success(res.message || 'Login access updated successfully.');
+        setCustomers((prev) =>
+          prev.map((c) =>
+            c.userId === userId ? { ...c, isEnableLogin: res.isEnableLogin } : c
+          )
+        );
+        router.refresh();
+      } else {
+        toast.error(res.error || 'Failed to toggle login access.');
+      }
+    } catch {
+      toast.error('An unexpected error occurred.');
+    } finally {
+      setActionLoadingId(null);
+    }
+  };
+
+  const handleReactivateCustomer = async (userId: string) => {
+    setActionLoadingId(userId);
+    try {
+      const res = await reactivateUserAction({ userId });
+      if (res.success) {
+        toast.success(res.message || 'Customer account reactivated successfully.');
+        setCustomers((prev) =>
+          prev.map((c) =>
+            c.userId === userId
+              ? { ...c, isActive: true, isEnableLogin: true, suspendedReason: null, suspendedAt: null }
+              : c
+          )
+        );
+        router.refresh();
+      } else {
+        toast.error(res.error || 'Failed to reactivate customer.');
+      }
+    } catch {
+      toast.error('An unexpected error occurred.');
+    } finally {
+      setActionLoadingId(null);
+    }
+  };
   const [isDeleting, setIsDeleting] = useState(false);
 
   const updateFilters = useCallback(
@@ -191,6 +268,7 @@ export function CustomerDataTable({
   };
 
   return (
+  <TooltipProvider>
     <div className="space-y-4">
       {/* Top Controls: Search Bar & Actions */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-card p-4 rounded-2xl border border-border shadow-xs">
@@ -381,6 +459,35 @@ export function CustomerDataTable({
                       </Badge>
                     </td>
 
+                    {/* Status Badge */}
+                    <td className="py-3.5 px-4 text-center">
+                      {cust.isActive !== false ? (
+                        <Badge className="bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 border-emerald-500/30 text-[10px] font-semibold py-0.5 px-2 rounded-full">
+                          Active
+                        </Badge>
+                      ) : (
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <Badge variant="destructive" className="text-[10px] font-semibold py-0.5 px-2 rounded-full gap-1 cursor-pointer">
+                              <IconUserX size={10} />
+                              <span>Suspended</span>
+                            </Badge>
+                          </TooltipTrigger>
+                          <TooltipContent side="top" className="text-xs max-w-xs p-2">
+                            <p className="font-bold text-destructive">Account Suspended</p>
+                            <p className="text-muted-foreground mt-0.5">
+                              {cust.suspendedReason || "Suspended by administrator."}
+                            </p>
+                            {cust.suspendedAt && (
+                              <p className="text-[10px] text-muted-foreground/80 mt-1">
+                                Date: {new Date(cust.suspendedAt).toLocaleDateString()}
+                              </p>
+                            )}
+                          </TooltipContent>
+                        </Tooltip>
+                      )}
+                    </td>
+
                     {/* Total Spent */}
                     <td className="py-3.5 px-4">
                       <CustomerSpendBadge amount={cust.totalSpent} size="sm" />
@@ -425,6 +532,45 @@ export function CustomerDataTable({
                             <IconEye size={14} />
                             <span>View History</span>
                           </DropdownMenuItem>
+
+                          {cust.userId && (
+                            <>
+                              <DropdownMenuItem
+                                onClick={() => setSecurityModalState({ open: true, userId: cust.userId!, name: cust.name })}
+                                className="text-xs cursor-pointer gap-2"
+                              >
+                                <IconShieldLock size={14} />
+                                <span>Security Telemetry</span>
+                              </DropdownMenuItem>
+
+                              <DropdownMenuItem
+                                onClick={() => handleToggleLogin(cust.userId!)}
+                                className="text-xs cursor-pointer gap-2"
+                              >
+                                {cust.isEnableLogin !== false ? <IconLock size={14} /> : <IconLockOpen size={14} />}
+                                <span>{cust.isEnableLogin !== false ? 'Disable Login' : 'Enable Login'}</span>
+                              </DropdownMenuItem>
+
+                              {cust.isActive !== false ? (
+                                <DropdownMenuItem
+                                  onClick={() => setSuspendModalState({ open: true, userId: cust.userId!, name: cust.name, email: cust.email })}
+                                  className="text-xs cursor-pointer text-destructive focus:text-destructive gap-2"
+                                >
+                                  <IconUserX size={14} />
+                                  <span>Suspend Account</span>
+                                </DropdownMenuItem>
+                              ) : (
+                                <DropdownMenuItem
+                                  onClick={() => handleReactivateCustomer(cust.userId!)}
+                                  className="text-xs cursor-pointer text-emerald-600 dark:text-emerald-400 focus:bg-emerald-500/10 gap-2"
+                                >
+                                  <IconUserCheck size={14} />
+                                  <span>Reactivate Account</span>
+                                </DropdownMenuItem>
+                              )}
+                            </>
+                          )}
+
                           <DropdownMenuSeparator />
                           <DropdownMenuItem
                             onClick={() => setCustomerToDelete(cust)}
@@ -477,6 +623,26 @@ export function CustomerDataTable({
         onConfirm={handleDeleteConfirm}
         isDeleting={isDeleting}
       />
+      {/* Suspension Modal */}
+      <SuspendUserModal
+        open={suspendModalState.open}
+        onOpenChange={(open) => setSuspendModalState((prev) => ({ ...prev, open }))}
+        userId={suspendModalState.userId}
+        userName={suspendModalState.name}
+        userEmail={suspendModalState.email}
+        onSuccess={() => router.refresh()}
+      />
+
+      {/* Security Telemetry Modal */}
+      <UserStatusDetailsModal
+        open={securityModalState.open}
+        onOpenChange={(open) => setSecurityModalState((prev) => ({ ...prev, open }))}
+        userId={securityModalState.userId}
+        userName={securityModalState.name}
+        onUpdated={() => router.refresh()}
+      />
     </div>
+  </TooltipProvider>
   );
 }
+

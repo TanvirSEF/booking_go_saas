@@ -7,6 +7,11 @@ export interface CustomerCRMItem {
   dob?: string;
   description?: string;
   avatar?: string;
+  userId?: string | null;
+  isActive?: boolean;
+  isEnableLogin?: boolean;
+  suspendedReason?: string | null;
+  suspendedAt?: string | null;
   totalAppointments: number;
   completedAppointments: number;
   totalSpent: number;

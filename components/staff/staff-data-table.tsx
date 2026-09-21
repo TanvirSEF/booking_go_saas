@@ -53,6 +53,13 @@ import {
 import type { StaffMemberDTO, StaffPlanQuota } from '@/types/staff';
 import { StaffSheet } from './staff-sheet';
 import { DeleteConfirmDialog } from '@/components/dashboard/services/delete-confirm-dialog';
+import { SuspendUserModal } from '@/components/modals/suspend-user-modal';
+import { UserStatusDetailsModal } from '@/components/modals/user-status-details-modal';
+import {
+} from '@/actions/user-management';
+import {
+  TooltipProvider,
+} from '@/components/ui/tooltip';
 import { TablePaginationBar } from '@/components/shared/table-pagination-bar';
 import type { TagOption } from './staff-tag-picker';
 
@@ -89,6 +96,26 @@ export function StaffDataTable({
   const [deleteTarget, setDeleteTarget] = useState<StaffMemberDTO | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
   const [actionLoadingId, setActionLoadingId] = useState<string | null>(null);
+  const [suspendModalState, setSuspendModalState] = useState<{
+    open: boolean;
+    userId: string;
+    name: string;
+    email?: string;
+  }>({
+    open: false,
+    userId: '',
+    name: '',
+    email: '',
+  });
+  const [securityModalState, setSecurityModalState] = useState<{
+    open: boolean;
+    userId: string;
+    name: string;
+  }>({
+    open: false,
+    userId: '',
+    name: '',
+  });
 
   const updateFilters = useCallback(
     (updates: Record<string, string | null>) => {
@@ -243,6 +270,7 @@ export function StaffDataTable({
   };
 
   return (
+  <TooltipProvider>
     <div className="space-y-6">
       {/* Search & Filter Toolbar */}
       <div className="flex flex-col lg:flex-row items-start lg:items-center justify-between gap-4">
@@ -364,8 +392,9 @@ export function StaffDataTable({
               <TableHead className="w-[280px] font-semibold text-xs">Specialist</TableHead>
               <TableHead className="font-semibold text-xs">Assigned Locations</TableHead>
               <TableHead className="font-semibold text-xs">Assigned Services</TableHead>
-              <TableHead className="font-semibold text-xs w-[120px]">Color Code</TableHead>
-              <TableHead className="font-semibold text-xs w-[110px]">Status</TableHead>
+              <TableHead className="font-semibold text-xs w-[100px]">Color Code</TableHead>
+              <TableHead className="font-semibold text-xs w-[110px]">Login Access</TableHead>
+              <TableHead className="font-semibold text-xs w-[110px]">Account Status</TableHead>
               <TableHead className="text-right font-semibold text-xs w-[80px]">Actions</TableHead>
             </TableRow>
           </TableHeader>
@@ -625,6 +654,26 @@ export function StaffDataTable({
         onConfirm={handleDeleteConfirm}
         isDeleting={isDeleting}
       />
+      {/* Suspension Modal */}
+      <SuspendUserModal
+        open={suspendModalState.open}
+        onOpenChange={(open) => setSuspendModalState((prev) => ({ ...prev, open }))}
+        userId={suspendModalState.userId}
+        userName={suspendModalState.name}
+        userEmail={suspendModalState.email}
+        onSuccess={() => router.refresh()}
+      />
+
+      {/* Security Telemetry Modal */}
+      <UserStatusDetailsModal
+        open={securityModalState.open}
+        onOpenChange={(open) => setSecurityModalState((prev) => ({ ...prev, open }))}
+        userId={securityModalState.userId}
+        userName={securityModalState.name}
+        onUpdated={() => router.refresh()}
+      />
     </div>
+  </TooltipProvider>
   );
 }
+

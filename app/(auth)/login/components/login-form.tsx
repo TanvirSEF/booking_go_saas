@@ -14,6 +14,12 @@ export function LoginForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const callbackUrl = searchParams.get("callbackUrl") || "";
+  const errorParam = searchParams.get("error");
+  const isAccountDisabled =
+    errorParam === "AccountDisabled" ||
+    errorParam === "AccessDenied" ||
+    errorParam === "Suspended";
+
 
   const [email, setEmail] = useState("superadmin@example.com");
   const [password, setPassword] = useState("1234");
@@ -59,6 +65,17 @@ export function LoginForm() {
   return (
     <div className="flex flex-col" suppressHydrationWarning>
       <form onSubmit={handleSubmit} className="flex flex-col gap-4">
+        {isAccountDisabled && (
+          <div className="flex items-start gap-2.5 rounded-xl border border-destructive/30 bg-destructive/10 p-3.5 text-xs text-destructive">
+            <AlertCircle className="size-4 shrink-0 mt-0.5" />
+            <div className="space-y-0.5">
+              <p className="font-semibold">Account Access Restricted</p>
+              <p className="text-muted-foreground leading-relaxed">
+                Your account login access has been disabled or suspended by the administrator. Please contact support.
+              </p>
+            </div>
+          </div>
+        )}
         {error && (
           <div className="flex items-center gap-2 rounded-lg border border-destructive/20 bg-destructive/10 p-3 text-xs text-destructive">
             <AlertCircle className="size-4 shrink-0" />
