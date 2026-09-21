@@ -1,6 +1,7 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useRef } from "react";
+import { RecaptchaWidget, type RecaptchaWidgetRef } from "@/components/common/recaptcha-widget";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { signIn } from "next-auth/react";
@@ -34,6 +35,8 @@ export function RegisterForm() {
   const [error, setError] = useState("");
   const [successMessage, setSuccessMessage] = useState("");
   const [isLoading, setIsLoading] = useState(false);
+  const [recaptchaToken, setRecaptchaToken] = useState<string | null>(null);
+  const recaptchaRef = useRef<RecaptchaWidgetRef>(null);
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -70,16 +73,22 @@ export function RegisterForm() {
 
     try {
       // 1. Invoke atomic provisioning Server Action
+      const token = await recaptchaRef.current?.execute("register");
+      const activeToken = token || recaptchaToken || undefined;
+
       const result = await registerCompanyAction({
         name: name.trim(),
         businessName: businessName.trim(),
         email: email.toLowerCase().trim(),
         password,
         mobileNo: mobileNo.trim() || undefined,
+        recaptchaToken: activeToken,
       });
 
       if (!result.success) {
         setError(result.error || "Registration failed. Please try again.");
+        recaptchaRef.current?.reset();
+        setRecaptchaToken(null);
         setIsLoading(false);
         return;
       }
@@ -274,6 +283,14 @@ export function RegisterForm() {
             You will be automatically enrolled in our starter Free Plan with standard business hours, appointment scheduling, and customer CRM tools. No credit card required.
           </p>
         </div>
+
+        {/* Google reCAPTCHA Protection */}
+        <RecaptchaWidget
+          ref={recaptchaRef}
+          action="register"
+          onChange={setRecaptchaToken}
+          className="my-1"
+        />
 
         {/* Submit Button */}
         <Button

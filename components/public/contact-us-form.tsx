@@ -1,6 +1,7 @@
 "use client";
 
 import * as React from "react";
+import { RecaptchaWidget, type RecaptchaWidgetRef } from "@/components/common/recaptcha-widget";
 import { IconMail, IconSend } from "@tabler/icons-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -26,6 +27,8 @@ export function ContactUsForm({
   const [subject, setSubject] = React.useState("");
   const [message, setMessage] = React.useState("");
   const [isSubmitting, setIsSubmitting] = React.useState(false);
+  const [recaptchaToken, setRecaptchaToken] = React.useState<string | null>(null);
+  const recaptchaRef = React.useRef<RecaptchaWidgetRef>(null);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -37,6 +40,9 @@ export function ContactUsForm({
 
     setIsSubmitting(true);
     try {
+      const token = await recaptchaRef.current?.execute("contact_us");
+      const activeToken = token || recaptchaToken || undefined;
+
       const res = await submitPublicContactInquiryAction({
         businessSlug,
         name: name.trim(),
@@ -45,6 +51,7 @@ export function ContactUsForm({
         subject: subject.trim(),
         message: message.trim(),
         theme,
+        recaptchaToken: activeToken,
       });
 
       if (res.success) {
@@ -56,6 +63,8 @@ export function ContactUsForm({
         setMessage("");
       } else {
         toast.error(res.error || "Failed to submit inquiry. Please try again.");
+        recaptchaRef.current?.reset();
+        setRecaptchaToken(null);
       }
     } catch {
       toast.error("An unexpected error occurred while sending your message.");
@@ -156,6 +165,13 @@ export function ContactUsForm({
           className="text-xs resize-none"
         />
       </div>
+
+      <RecaptchaWidget
+        ref={recaptchaRef}
+        action="contact_us"
+        onChange={setRecaptchaToken}
+        className="my-1"
+      />
 
       <Button
         type="submit"
