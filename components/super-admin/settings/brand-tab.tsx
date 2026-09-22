@@ -22,6 +22,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { MediaUploader } from "@/components/shared/media-uploader";
 import { updateSystemSettingsGroupAction } from "@/actions/system-settings";
 import { ResetGroupDialog } from "./reset-group-dialog";
 
@@ -144,15 +145,15 @@ export function BrandTab({ initialData }: BrandTabProps) {
             <div className="space-y-1.5">
               <Label htmlFor="logo_dark" className="text-xs font-semibold flex items-center gap-1.5">
                 <IconPhoto className="size-3.5 text-muted-foreground" />
-                Dark Theme Logo URL
+                Dark Theme Logo
               </Label>
-              <Input
-                id="logo_dark"
+              <MediaUploader
                 value={formData.logo_dark}
-                onChange={(e) => setFormData({ ...formData, logo_dark: e.target.value })}
-                placeholder="/images/logo-dark.png"
-                className="h-9 text-xs"
+                onChange={(url) => setFormData({ ...formData, logo_dark: url })}
+                folder="logo"
+                placeholder="Upload dark logo or enter image URL"
                 disabled={isPending}
+                aspectRatio="wide"
               />
             </div>
 
@@ -160,30 +161,31 @@ export function BrandTab({ initialData }: BrandTabProps) {
             <div className="space-y-1.5">
               <Label htmlFor="logo_light" className="text-xs font-semibold flex items-center gap-1.5">
                 <IconPhoto className="size-3.5 text-muted-foreground" />
-                Light Theme Logo URL
+                Light Theme Logo
               </Label>
-              <Input
-                id="logo_light"
+              <MediaUploader
                 value={formData.logo_light}
-                onChange={(e) => setFormData({ ...formData, logo_light: e.target.value })}
-                placeholder="/images/logo-light.png"
-                className="h-9 text-xs"
+                onChange={(url) => setFormData({ ...formData, logo_light: url })}
+                folder="logo"
+                placeholder="Upload light logo or enter image URL"
                 disabled={isPending}
+                aspectRatio="wide"
               />
             </div>
 
             {/* Favicon */}
             <div className="space-y-1.5 md:col-span-2">
-              <Label htmlFor="favicon" className="text-xs font-semibold">
-                Favicon URL
+              <Label htmlFor="favicon" className="text-xs font-semibold flex items-center gap-1.5">
+                <IconPhoto className="size-3.5 text-muted-foreground" />
+                Favicon (Browser Tab Icon)
               </Label>
-              <Input
-                id="favicon"
+              <MediaUploader
                 value={formData.favicon}
-                onChange={(e) => setFormData({ ...formData, favicon: e.target.value })}
-                placeholder="/favicon.ico"
-                className="h-9 text-xs"
+                onChange={(url) => setFormData({ ...formData, favicon: url })}
+                folder="meta"
+                placeholder="Upload favicon (.ico, .png, .svg) or enter image URL"
                 disabled={isPending}
+                aspectRatio="square"
               />
             </div>
           </div>

@@ -24,6 +24,7 @@ export interface ServiceItem {
   name: string;
   categoryId: string;
   categoryName: string;
+  image?: string;
   price: number;
   durationMinutes: number;
   description?: string;
@@ -52,6 +53,7 @@ export type CategoryInput = z.infer<typeof categoryInputSchema>;
 const serviceInputSchema = z.object({
   name: z.string().min(2, 'Service name must be at least 2 characters').trim(),
   categoryId: z.string().min(1, 'Category is required'),
+  image: z.string().optional().default(''),
   durationMinutes: z.coerce.number().min(5, 'Duration must be at least 5 minutes'),
   price: z.coerce.number().min(0, 'Price must be 0 or greater'),
   isFree: z.boolean().default(false),
@@ -285,6 +287,7 @@ export async function getServices(
       name: srv.name,
       categoryId: String(srv.categoryId),
       categoryName: categoryMap.get(String(srv.categoryId)) || 'Uncategorized',
+      image: srv.image || '',
       price: srv.price || 0,
       durationMinutes: srv.durationMinutes || 30,
       description: srv.description || '',
@@ -332,6 +335,7 @@ export async function createService(
     const {
       name,
       categoryId,
+      image,
       durationMinutes,
       price,
       isFree,
@@ -362,6 +366,7 @@ export async function createService(
       businessId,
       categoryId: new Types.ObjectId(categoryId),
       name,
+      image: image || '',
       price: isFree ? 0 : price,
       durationMinutes,
       description,
@@ -386,6 +391,7 @@ export async function createService(
         name: newService.name,
         categoryId: String(newService.categoryId),
         categoryName: categoryDoc.name,
+        image: newService.image || '',
         price: newService.price,
         durationMinutes: newService.durationMinutes,
         description: newService.description || '',
@@ -436,6 +442,7 @@ export async function updateService(
     const {
       name,
       categoryId,
+      image,
       durationMinutes,
       price,
       isFree,
@@ -461,6 +468,7 @@ export async function updateService(
 
     serviceDoc.name = name;
     serviceDoc.categoryId = new Types.ObjectId(categoryId);
+    if (image !== undefined) serviceDoc.image = image;
     serviceDoc.durationMinutes = durationMinutes;
     serviceDoc.price = isFree ? 0 : price;
     serviceDoc.isFree = isFree;

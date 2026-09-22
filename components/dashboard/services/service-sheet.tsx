@@ -29,7 +29,9 @@ import {
   IconCurrencyDollar,
   IconLoader2,
   IconAlertTriangle,
+  IconPhoto,
 } from '@tabler/icons-react';
+import { MediaUploader } from '@/components/shared/media-uploader';
 import {
   createService,
   updateService,
@@ -85,6 +87,7 @@ function ServiceFormContent({
   const [formData, setFormData] = useState<ServiceInput>({
     name: service?.name || '',
     categoryId: initialCategory,
+    image: service?.image || '',
     durationMinutes: service?.durationMinutes ?? 30,
     price: service?.price ?? 25,
     isFree: service?.isFree ?? false,
@@ -245,6 +248,22 @@ function ServiceFormContent({
           {errors.categoryId && (
             <p className="text-xs text-destructive">{errors.categoryId}</p>
           )}
+        </div>
+
+        {/* Service Image Upload */}
+        <div className="space-y-1.5">
+          <Label className="text-xs font-semibold text-foreground flex items-center gap-1">
+            <IconPhoto size={14} className="text-muted-foreground" />
+            <span>Service Image</span>
+          </Label>
+          <MediaUploader
+            value={formData.image || ''}
+            onChange={(url) => setFormData((prev) => ({ ...prev, image: url }))}
+            folder="services"
+            placeholder="Upload service image or enter image URL"
+            disabled={isSubmitting}
+            aspectRatio="banner"
+          />
         </div>
 
         {/* Duration and Price Grid */}

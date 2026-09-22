@@ -1,7 +1,6 @@
 "use client";
 
 import * as React from "react";
-import Image from "next/image";
 import {
   IconArticle,
   IconBold,
@@ -14,7 +13,6 @@ import {
   IconPhoto,
   IconQuote,
   IconSparkles,
-  IconX,
 } from "@tabler/icons-react";
 import {
   Dialog,
@@ -37,6 +35,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { toast } from "sonner";
+import { MediaUploader } from "@/components/shared/media-uploader";
 import { createBlogPostAction, updateBlogPostAction } from "@/actions/blog";
 import type { BlogPostDTO, BlogStatus } from "@/types/blog";
 
@@ -259,47 +258,20 @@ function BlogEditorForm({ post, onCancel, onSaved }: BlogEditorFormProps) {
           </div>
         </div>
 
-        {/* Hero Image URL & Live Preview */}
+        {/* Hero Image / Thumbnail Upload */}
         <div className="space-y-2">
           <Label htmlFor="post-image" className="text-xs font-semibold text-foreground flex items-center gap-1.5">
             <IconPhoto size={15} className="text-primary" />
-            Hero Thumbnail Image URL
+            Hero Thumbnail Image
           </Label>
-          <div className="flex gap-2">
-            <Input
-              id="post-image"
-              placeholder="https://images.unsplash.com/photo-... or custom URL"
-              value={image}
-              onChange={(e) => setImage(e.target.value)}
-              className="text-xs"
-            />
-            {image && (
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                onClick={() => setImage("")}
-                className="shrink-0 text-xs text-muted-foreground hover:text-destructive"
-              >
-                <IconX size={14} />
-              </Button>
-            )}
-          </div>
-
-          {image && (
-            <div className="relative w-full h-36 rounded-lg overflow-hidden border border-border/60 bg-muted">
-              <Image
-                src={image}
-                alt="Article thumbnail preview"
-                fill
-                unoptimized
-                className="object-cover"
-                onError={() => {
-                  toast.error("Failed to load thumbnail preview image.");
-                }}
-              />
-            </div>
-          )}
+          <MediaUploader
+            value={image}
+            onChange={(url) => setImage(url)}
+            folder="blog"
+            placeholder="Upload thumbnail or enter image URL"
+            disabled={isSubmitting}
+            aspectRatio="banner"
+          />
         </div>
 
         {/* Summary / Excerpt */}

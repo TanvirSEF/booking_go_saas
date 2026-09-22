@@ -3,7 +3,6 @@
 import React, { useState, useRef } from 'react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { uploadReceiptAction } from '@/actions/appointment-payment';
 import {
   IconUpload,
   IconX,
@@ -57,17 +56,22 @@ export function BankTransferUploader({
     try {
       setIsUploading(true);
       const formData = new FormData();
-      formData.append('receipt', file);
       formData.append('file', file);
+      formData.append('folder', 'receipts');
 
-      const res = await uploadReceiptAction(formData);
+      const res = await fetch('/api/upload', {
+        method: 'POST',
+        body: formData,
+      });
 
-      if (!res.success || !res.url) {
-        setErrorMessage(res.error || 'Failed to upload receipt. Please try again.');
+      const data = await res.json();
+
+      if (!res.ok || !data.success || !data.url) {
+        setErrorMessage(data.error || 'Failed to upload receipt. Please try again.');
       } else {
         setFileName(file.name);
         setFileSize(formatBytes(file.size));
-        onChange(res.url);
+        onChange(data.url);
       }
     } catch {
       setErrorMessage('An unexpected error occurred during file upload.');

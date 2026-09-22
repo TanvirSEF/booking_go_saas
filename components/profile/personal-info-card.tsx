@@ -19,6 +19,7 @@ import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { MediaUploader } from "@/components/shared/media-uploader";
 import { updateUserProfileAction } from "@/actions/user-profile";
 import type { UserProfileDTO } from "@/types/user-profile";
 
@@ -188,22 +189,20 @@ export function PersonalInfoCard({ profile, onProfileUpdated }: PersonalInfoCard
               </div>
             </div>
 
-            {/* Avatar URL */}
-            <div className="space-y-1.5">
-              <Label htmlFor="profile-avatar" className="text-xs font-semibold">
-                Avatar Image URL
+            {/* Avatar Upload */}
+            <div className="space-y-1.5 sm:col-span-2">
+              <Label htmlFor="profile-avatar" className="text-xs font-semibold flex items-center gap-1.5">
+                <IconPhoto className="size-4 text-muted-foreground" />
+                Profile Avatar Photo
               </Label>
-              <div className="relative">
-                <IconPhoto className="size-4 absolute left-3 top-2.5 text-muted-foreground" />
-                <Input
-                  id="profile-avatar"
-                  value={formData.avatar}
-                  onChange={(e) => setFormData({ ...formData, avatar: e.target.value })}
-                  placeholder="/uploads/users-avatar/avatar.png"
-                  className="pl-9 h-9 text-xs"
-                  disabled={isPending}
-                />
-              </div>
+              <MediaUploader
+                value={formData.avatar}
+                onChange={(url) => setFormData({ ...formData, avatar: url })}
+                folder="users-avatar"
+                placeholder="Upload avatar photo or enter custom image URL"
+                disabled={isPending}
+                aspectRatio="square"
+              />
             </div>
           </div>
 
