@@ -8,6 +8,7 @@ import { Business, type IBusiness } from '@/models/Business';
 import { User } from '@/models/User';
 import { sendTemplatedEmail, ensureSystemTemplatesSeeded } from './email-engine';
 import { getGoogleCalendarUrl, getOutlookCalendarUrl } from './calendar-link';
+import { formatCustomFieldsForEmail } from './custom-fields';
 import type {
   AppointmentEmailEventType,
   EmailDispatchResult,
@@ -116,6 +117,7 @@ export async function dispatchAppointmentEmailEvent(
       appointment_status: appointment.appointmentStatus || 'Pending',
       payment_type: appointment.paymentType || 'Manual',
       payment_status: appointment.paymentStatus || 'unpaid',
+      custom_fields: formatCustomFieldsForEmail(appointment.customFields as Record<string, unknown>),
       google_calendar_url: googleCalUrl,
       outlook_calendar_url: outlookCalUrl,
       ...extraVariables,
