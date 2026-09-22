@@ -1,6 +1,8 @@
 import { Metadata } from "next";
+import { IconMail } from "@tabler/icons-react";
 import { getEmailTemplatesAction } from "@/actions/email-template";
 import { EmailTemplateList } from "@/components/dashboard/email-templates/email-template-list";
+import { PageHeader } from "@/components/dashboard/page-header";
 
 export const dynamic = "force-dynamic";
 
@@ -14,17 +16,20 @@ export default async function EmailTemplatesDashboardPage() {
   const templates = res.data || [];
 
   return (
-    <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-bold tracking-tight text-foreground">
-          Email Notifications & Templates
-        </h1>
-        <p className="text-sm text-muted-foreground mt-1">
-          Customize automated customer emails, manage multi-language translations, and test SMTP email delivery.
-        </p>
-      </div>
+    <div className="min-h-screen pb-16">
+      <PageHeader
+        title="Email Notifications & Templates"
+        description="Customize automated customer emails, manage multi-language translations, and test SMTP email delivery."
+        icon={<IconMail size={22} />}
+        breadcrumbs={[
+          { label: "Settings", href: "/dashboard/settings" },
+          { label: "Email Templates" },
+        ]}
+      />
 
-      <EmailTemplateList initialTemplates={templates} />
+      <main className="w-full mx-auto px-4 sm:px-6 pt-8">
+        <EmailTemplateList initialTemplates={templates} />
+      </main>
     </div>
   );
 }

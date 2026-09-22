@@ -1,5 +1,6 @@
 import React from "react";
 import { Metadata } from "next";
+import { IconCreditCard } from "@tabler/icons-react";
 import { requireRole } from "@/lib/guards";
 import { ACCESS } from "@/lib/roles";
 import { connectToDatabase } from "@/lib/db";
@@ -7,6 +8,7 @@ import { User } from "@/models/User";
 import { Plan } from "@/models/Plan";
 import { BankTransferPayment } from "@/models/BankTransferPayment";
 import { PlanSelectionGrid, type PlanItem, type PendingTransferItem } from "@/components/dashboard/billing/plan-selection-grid";
+import { PageHeader } from "@/components/dashboard/page-header";
 
 export const metadata: Metadata = {
   title: "Subscription & Billing | Company Portal",
@@ -73,24 +75,24 @@ export default async function CompanyBillingPage() {
   }));
 
   return (
-    <div className="space-y-6">
-      <div>
-        <h1 className="text-xl font-bold tracking-tight text-foreground sm:text-2xl">
-          Subscription & Billing
-        </h1>
-        <p className="text-xs text-muted-foreground sm:text-sm">
-          Upgrade your organization package, scale team capacity, or renew your subscription tier.
-        </p>
-      </div>
-
-      <PlanSelectionGrid
-        plans={plans}
-        currentPlanId={currentPlanId}
-        currentPlanName={currentPlanName}
-        billingCycle={billingCycle}
-        planExpireDate={planExpireDate}
-        pendingTransfers={pendingTransfers}
+    <div className="min-h-screen pb-16">
+      <PageHeader
+        title="Subscription & Billing"
+        description="Upgrade your organization package, scale team capacity, or renew your subscription tier."
+        icon={<IconCreditCard size={22} />}
+        breadcrumbs={[{ label: "Subscription & Billing" }]}
       />
+
+      <main className="w-full mx-auto px-4 sm:px-6 pt-8">
+        <PlanSelectionGrid
+          plans={plans}
+          currentPlanId={currentPlanId}
+          currentPlanName={currentPlanName}
+          billingCycle={billingCycle}
+          planExpireDate={planExpireDate}
+          pendingTransfers={pendingTransfers}
+        />
+      </main>
     </div>
   );
 }

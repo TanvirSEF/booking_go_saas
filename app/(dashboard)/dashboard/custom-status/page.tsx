@@ -1,6 +1,8 @@
 import { Metadata } from "next";
+import { IconAdjustmentsHorizontal } from "@tabler/icons-react";
 import { getCustomStatusesAction } from "@/actions/custom-status";
 import { CustomStatusManager } from "@/components/dashboard/custom-status/custom-status-manager";
+import { PageHeader } from "@/components/dashboard/page-header";
 
 export const dynamic = "force-dynamic";
 
@@ -14,17 +16,17 @@ export default async function CustomStatusPage() {
   const statuses = res.data || [];
 
   return (
-    <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-bold tracking-tight text-foreground">
-          Custom Statuses
-        </h1>
-        <p className="text-sm text-muted-foreground mt-1">
-          Create and organize customized stages for your appointment pipeline with color badges and icons.
-        </p>
-      </div>
+    <div className="min-h-screen pb-16">
+      <PageHeader
+        title="Custom Statuses"
+        description="Create and organize customized stages for your appointment pipeline with color badges and icons."
+        icon={<IconAdjustmentsHorizontal size={22} />}
+        breadcrumbs={[{ label: "Custom Statuses" }]}
+      />
 
-      <CustomStatusManager initialStatuses={statuses} />
+      <main className="w-full mx-auto px-4 sm:px-6 pt-8">
+        <CustomStatusManager initialStatuses={statuses} />
+      </main>
     </div>
   );
 }
