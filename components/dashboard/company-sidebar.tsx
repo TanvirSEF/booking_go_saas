@@ -24,6 +24,7 @@ import {
   IconUsers,
   IconUsersGroup,
   IconCreditCard,
+  IconWorld,
 } from "@tabler/icons-react";
 import {
   Sidebar,
@@ -190,6 +191,11 @@ export const companyNavigationData: SidebarGroupData[] = [
         title: "Company Settings",
         url: "/dashboard/settings",
         icon: IconSettings,
+      },
+      {
+        title: "Language Settings",
+        url: "/dashboard/language",
+        icon: IconWorld,
       },
       {
         title: "Subscription & Billing",
