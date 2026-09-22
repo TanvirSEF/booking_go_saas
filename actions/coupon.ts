@@ -7,6 +7,16 @@ import { Coupon } from "@/models/Coupon";
 import { UserCoupon } from "@/models/UserCoupon";
 import { Order } from "@/models/Order";
 import "@/models/User";
+import {
+  validateCouponRules,
+  redeemCoupon,
+  generateRandomCouponCode,
+} from "@/lib/coupon-engine";
+import type {
+  CouponValidationResult,
+  RedeemCouponResult,
+  CouponStatsResult,
+} from "@/types/coupon";
 
 async function verifySuperAdmin() {
   const session = await auth();
@@ -24,7 +34,11 @@ export interface CouponItem {
   discount: number;
   limit: number;
   usedCount: number;
+  maxUsagePerUser?: number;
+  minimumSpend?: number;
+  maximumSpend?: number;
   expiryDate?: string | null;
+  description?: string;
   isActive: boolean;
   createdAt: string;
 }
@@ -35,7 +49,11 @@ export interface CreateCouponInput {
   discount: number;
   limit: number;
   discountType?: "percentage" | "flat";
+  maxUsagePerUser?: number;
+  minimumSpend?: number;
+  maximumSpend?: number;
   expiryDate?: string | null;
+  description?: string;
 }
 
 export interface UpdateCouponInput extends CreateCouponInput {
@@ -64,7 +82,11 @@ export async function getCouponsAction(): Promise<CouponItem[]> {
     discount: c.discount,
     limit: c.limit,
     usedCount: c.usedCount || 0,
+    maxUsagePerUser: c.maxUsagePerUser ?? 1,
+    minimumSpend: c.minimumSpend ?? 0,
+    maximumSpend: c.maximumSpend ?? 0,
     expiryDate: c.expiryDate ? new Date(c.expiryDate).toLocaleDateString() : null,
+    description: c.description || "",
     isActive: c.isActive ?? true,
     createdAt: new Date(c.createdAt).toLocaleDateString(),
   }));
@@ -79,6 +101,9 @@ export async function createCouponAction(data: CreateCouponInput) {
     const code = data.code?.toUpperCase().trim();
     const discount = Number(data.discount);
     const limit = Number(data.limit);
+    const maxUsagePerUser = data.maxUsagePerUser !== undefined ? Number(data.maxUsagePerUser) : 1;
+    const minimumSpend = data.minimumSpend !== undefined ? Number(data.minimumSpend) : 0;
+    const maximumSpend = data.maximumSpend !== undefined ? Number(data.maximumSpend) : 0;
 
     if (!name) {
       return { success: false, error: "Please enter a coupon name." };
@@ -92,12 +117,12 @@ export async function createCouponAction(data: CreateCouponInput) {
       return { success: false, error: "Please enter a valid discount amount." };
     }
 
-    if (discount > 100) {
+    if (data.discountType === "percentage" && discount > 100) {
       return { success: false, error: "Discount percentage cannot exceed 100%." };
     }
 
-    if (isNaN(limit) || limit < 1) {
-      return { success: false, error: "Limit must be at least 1." };
+    if (isNaN(limit) || limit < 0) {
+      return { success: false, error: "Limit must be a non-negative number." };
     }
 
     // Check code uniqueness
@@ -113,7 +138,11 @@ export async function createCouponAction(data: CreateCouponInput) {
       discountType: data.discountType || "percentage",
       limit,
       usedCount: 0,
+      maxUsagePerUser,
+      minimumSpend,
+      maximumSpend,
       expiryDate: data.expiryDate ? new Date(data.expiryDate) : undefined,
+      description: data.description || "",
       isActive: true,
     });
     await newCoupon.save();
@@ -136,6 +165,9 @@ export async function updateCouponAction(data: UpdateCouponInput) {
     const code = data.code?.toUpperCase().trim();
     const discount = Number(data.discount);
     const limit = Number(data.limit);
+    const maxUsagePerUser = data.maxUsagePerUser !== undefined ? Number(data.maxUsagePerUser) : 1;
+    const minimumSpend = data.minimumSpend !== undefined ? Number(data.minimumSpend) : 0;
+    const maximumSpend = data.maximumSpend !== undefined ? Number(data.maximumSpend) : 0;
 
     if (!name) {
       return { success: false, error: "Please enter a coupon name." };
@@ -149,12 +181,12 @@ export async function updateCouponAction(data: UpdateCouponInput) {
       return { success: false, error: "Please enter a valid discount amount." };
     }
 
-    if (discount > 100) {
+    if (data.discountType === "percentage" && discount > 100) {
       return { success: false, error: "Discount percentage cannot exceed 100%." };
     }
 
-    if (isNaN(limit) || limit < 1) {
-      return { success: false, error: "Limit must be at least 1." };
+    if (isNaN(limit) || limit < 0) {
+      return { success: false, error: "Limit must be a non-negative number." };
     }
 
     const coupon = await Coupon.findById(couponId);
@@ -178,8 +210,14 @@ export async function updateCouponAction(data: UpdateCouponInput) {
     coupon.name = name;
     coupon.discount = discount;
     coupon.limit = limit;
+    coupon.maxUsagePerUser = maxUsagePerUser;
+    coupon.minimumSpend = minimumSpend;
+    coupon.maximumSpend = maximumSpend;
     if (data.discountType) {
       coupon.discountType = data.discountType;
+    }
+    if (data.description !== undefined) {
+      coupon.description = data.description;
     }
     if (data.expiryDate !== undefined) {
       coupon.expiryDate = data.expiryDate ? new Date(data.expiryDate) : undefined;
@@ -191,6 +229,27 @@ export async function updateCouponAction(data: UpdateCouponInput) {
     return { success: true };
   } catch (err: unknown) {
     const message = err instanceof Error ? err.message : "Failed to update coupon";
+    return { success: false, error: message };
+  }
+}
+
+export async function toggleCouponStatusAction(couponId: string) {
+  try {
+    await verifySuperAdmin();
+    await connectToDatabase();
+
+    const coupon = await Coupon.findById(couponId);
+    if (!coupon) {
+      return { success: false, error: "Coupon not found." };
+    }
+
+    coupon.isActive = !coupon.isActive;
+    await coupon.save();
+
+    revalidatePath("/super-admin/coupons");
+    return { success: true, isActive: coupon.isActive };
+  } catch (err: unknown) {
+    const message = err instanceof Error ? err.message : "Failed to toggle coupon status";
     return { success: false, error: message };
   }
 }
@@ -283,6 +342,78 @@ export async function getCouponDetailsAction(couponId: string) {
     };
   } catch (err: unknown) {
     const message = err instanceof Error ? err.message : "Failed to load coupon details";
+    return { success: false, error: message };
+  }
+}
+
+/**
+ * Public action to validate a coupon and preview the calculated discount before payment.
+ */
+export async function validateCouponAction(
+  code: string,
+  orderAmount: number,
+  userId?: string
+): Promise<CouponValidationResult> {
+  return validateCouponRules(code, orderAmount, userId);
+}
+
+/**
+ * Server action to atomically redeem a coupon and log the redemption during checkout.
+ */
+export async function redeemCouponAction(data: {
+  code: string;
+  orderAmount: number;
+  userId: string;
+  orderId?: string;
+}): Promise<RedeemCouponResult> {
+  return redeemCoupon(data);
+}
+
+/**
+ * Helper action to generate a fresh uppercase coupon code.
+ */
+export async function generateCouponCodeAction(
+  prefix?: string
+): Promise<{ success: boolean; code: string }> {
+  const code = generateRandomCouponCode(prefix);
+  return { success: true, code };
+}
+
+/**
+ * Super Admin metrics action to aggregate coupon stats across all orders and redemptions.
+ */
+export async function getCouponStatsAction(): Promise<{
+  success: boolean;
+  data?: CouponStatsResult;
+  error?: string;
+}> {
+  try {
+    await verifySuperAdmin();
+    await connectToDatabase();
+
+    const [totalCoupons, activeCoupons, totalRedemptions, ordersWithDiscount] = await Promise.all([
+      Coupon.countDocuments(),
+      Coupon.countDocuments({ isActive: true }),
+      UserCoupon.countDocuments(),
+      Order.find({ discountAmount: { $gt: 0 } }).select("discountAmount").lean(),
+    ]);
+
+    const totalDiscountGiven = ordersWithDiscount.reduce(
+      (acc, curr) => acc + (curr.discountAmount || 0),
+      0
+    );
+
+    return {
+      success: true,
+      data: {
+        totalCoupons,
+        activeCoupons,
+        totalRedemptions,
+        totalDiscountGiven: Math.round(totalDiscountGiven * 100) / 100,
+      },
+    };
+  } catch (err: unknown) {
+    const message = err instanceof Error ? err.message : "Failed to load coupon stats";
     return { success: false, error: message };
   }
 }

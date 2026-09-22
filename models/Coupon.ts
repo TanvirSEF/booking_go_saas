@@ -12,6 +12,7 @@ export interface ICoupon {
   minimumSpend: number;
   maximumSpend?: number;
   expiryDate?: Date;
+  maxUsagePerUser?: number;
   description?: string;
   isActive: boolean;
   createdAt: Date;
@@ -54,6 +55,10 @@ const CouponSchema = new Schema<ICouponDocument>(
       type: Number,
       default: 0,
     },
+    maxUsagePerUser: {
+      type: Number,
+      default: 1,
+    },
     minimumSpend: {
       type: Number,
       default: 0,
@@ -80,6 +85,8 @@ const CouponSchema = new Schema<ICouponDocument>(
     timestamps: true,
   }
 );
+
+CouponSchema.index({ code: 1, isActive: 1 });
 
 export const Coupon: Model<ICouponDocument> =
   (mongoose.models.Coupon as Model<ICouponDocument>) ||
