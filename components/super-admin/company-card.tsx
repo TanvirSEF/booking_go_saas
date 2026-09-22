@@ -12,6 +12,9 @@ import {
   IconAdjustmentsHorizontal,
   IconUser,
   IconPower,
+  IconShieldCheck,
+  IconUserX,
+  IconUserCheck,
 } from "@tabler/icons-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -19,8 +22,14 @@ import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
+  DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 import { CompanyItem } from "./company-dialog";
 
 interface CompanyCardProps {
@@ -29,6 +38,9 @@ interface CompanyCardProps {
   onDelete: (company: CompanyItem) => void;
   onResetPassword: (company: CompanyItem) => void;
   onToggleStatus: (companyId: string, currentStatus: boolean) => void;
+  onSuspend?: (company: CompanyItem) => void;
+  onReactivate?: (company: CompanyItem) => void;
+  onViewSecurity?: (company: CompanyItem) => void;
 }
 
 export function CompanyCard({
@@ -37,6 +49,9 @@ export function CompanyCard({
   onDelete,
   onResetPassword,
   onToggleStatus,
+  onSuspend,
+  onReactivate,
+  onViewSecurity,
 }: CompanyCardProps) {
   const router = useRouter();
 
@@ -53,13 +68,60 @@ export function CompanyCard({
     }
   }
 
+  const isSuspended = company.isActive === false;
+  const isLoginAllowed = company.isEnableLogin !== false;
+
   return (
-    <div className="relative flex min-h-[250px] w-full flex-col justify-between rounded-2xl border border-border/40 bg-card p-5 shadow-xs transition-shadow hover:shadow-sm">
-      {/* Top Header: Badge & 3-dots Menu */}
-      <div className="flex items-center justify-between">
-        <Badge className="rounded-md bg-primary px-2.5 py-0.5 text-[11px] font-semibold text-primary-foreground">
-          Company
-        </Badge>
+    <div className="relative flex min-h-[260px] w-full flex-col justify-between rounded-2xl border border-border/40 bg-card p-5 shadow-xs transition-shadow hover:shadow-sm">
+      {/* Top Header: Status Badges & 3-dots Menu */}
+      <div className="flex items-center justify-between gap-2">
+        <div className="flex flex-wrap items-center gap-1.5">
+          {/* Account Status Badge */}
+          {isSuspended ? (
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Badge
+                  variant="outline"
+                  className="cursor-help border-destructive/30 bg-destructive/10 text-[10px] font-semibold text-destructive px-2 py-0.5"
+                >
+                  Suspended
+                </Badge>
+              </TooltipTrigger>
+              <TooltipContent className="max-w-xs text-xs">
+                <p className="font-semibold">Account Suspended</p>
+                {company.suspendedReason && (
+                  <p className="mt-0.5 text-muted-foreground">
+                    Reason: {company.suspendedReason}
+                  </p>
+                )}
+                {company.suspendedAt && (
+                  <p className="mt-0.5 text-[10px] text-muted-foreground">
+                    Date: {new Date(company.suspendedAt).toLocaleDateString()}
+                  </p>
+                )}
+              </TooltipContent>
+            </Tooltip>
+          ) : (
+            <Badge
+              variant="outline"
+              className="border-emerald-500/20 bg-emerald-500/10 text-[10px] font-semibold text-emerald-600 dark:text-emerald-400 px-2 py-0.5"
+            >
+              Active
+            </Badge>
+          )}
+
+          {/* Login Access Badge */}
+          <Badge
+            variant="outline"
+            className={
+              isLoginAllowed
+                ? "border-emerald-500/20 bg-emerald-500/5 text-[10px] font-semibold text-emerald-600 dark:text-emerald-400 px-2 py-0.5"
+                : "border-amber-500/20 bg-amber-500/10 text-[10px] font-semibold text-amber-600 dark:text-amber-400 px-2 py-0.5"
+            }
+          >
+            {isLoginAllowed ? "Login Allowed" : "Login Disabled"}
+          </Badge>
+        </div>
 
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
@@ -72,21 +134,13 @@ export function CompanyCard({
               <span className="sr-only">Actions</span>
             </Button>
           </DropdownMenuTrigger>
-          <DropdownMenuContent align="end" className="w-48 rounded-xl p-1.5 shadow-md">
+          <DropdownMenuContent align="end" className="w-52 rounded-xl p-1.5 shadow-md">
             <DropdownMenuItem
               onClick={() => onEdit(company)}
               className="cursor-pointer gap-2.5 rounded-lg py-1.5 text-xs font-medium"
             >
               <IconPencil size={15} />
-              <span>Edit</span>
-            </DropdownMenuItem>
-
-            <DropdownMenuItem
-              onClick={() => onDelete(company)}
-              className="cursor-pointer gap-2.5 rounded-lg py-1.5 text-xs font-medium text-destructive focus:bg-destructive/10 focus:text-destructive"
-            >
-              <IconTrash size={15} />
-              <span>Delete</span>
+              <span>Edit Company</span>
             </DropdownMenuItem>
 
             <DropdownMenuItem
@@ -113,16 +167,61 @@ export function CompanyCard({
               <span>Reset Password</span>
             </DropdownMenuItem>
 
+            <DropdownMenuSeparator />
+
+            {onViewSecurity && (
+              <DropdownMenuItem
+                onClick={() => onViewSecurity(company)}
+                className="cursor-pointer gap-2.5 rounded-lg py-1.5 text-xs font-medium"
+              >
+                <IconShieldCheck size={15} className="text-primary" />
+                <span>Security Details</span>
+              </DropdownMenuItem>
+            )}
+
             <DropdownMenuItem
-              onClick={() => onToggleStatus(company.id, company.isActive)}
-              className={`cursor-pointer gap-2.5 rounded-lg py-1.5 text-xs font-medium ${
-                company.isActive
-                  ? "text-destructive focus:bg-destructive/10 focus:text-destructive"
-                  : "text-emerald-600 dark:text-emerald-400 focus:bg-emerald-500/10"
-              }`}
+              onClick={() => onToggleStatus(company.id, isLoginAllowed)}
+              className={
+                "cursor-pointer gap-2.5 rounded-lg py-1.5 text-xs font-medium " +
+                (isLoginAllowed
+                  ? "text-amber-600 dark:text-amber-400 focus:bg-amber-500/10"
+                  : "text-emerald-600 dark:text-emerald-400 focus:bg-emerald-500/10")
+              }
             >
               <IconPower size={15} />
-              <span>{company.isActive ? "Login Disable" : "Login Enable"}</span>
+              <span>{isLoginAllowed ? "Disable Login" : "Enable Login"}</span>
+            </DropdownMenuItem>
+
+            {isSuspended ? (
+              onReactivate && (
+                <DropdownMenuItem
+                  onClick={() => onReactivate(company)}
+                  className="cursor-pointer gap-2.5 rounded-lg py-1.5 text-xs font-medium text-emerald-600 dark:text-emerald-400 focus:bg-emerald-500/10"
+                >
+                  <IconUserCheck size={15} />
+                  <span>Reactivate Company</span>
+                </DropdownMenuItem>
+              )
+            ) : (
+              onSuspend && (
+                <DropdownMenuItem
+                  onClick={() => onSuspend(company)}
+                  className="cursor-pointer gap-2.5 rounded-lg py-1.5 text-xs font-medium text-destructive focus:bg-destructive/10 focus:text-destructive"
+                >
+                  <IconUserX size={15} />
+                  <span>Suspend Company</span>
+                </DropdownMenuItem>
+              )
+            )}
+
+            <DropdownMenuSeparator />
+
+            <DropdownMenuItem
+              onClick={() => onDelete(company)}
+              className="cursor-pointer gap-2.5 rounded-lg py-1.5 text-xs font-medium text-destructive focus:bg-destructive/10 focus:text-destructive"
+            >
+              <IconTrash size={15} />
+              <span>Delete</span>
             </DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>
@@ -133,10 +232,10 @@ export function CompanyCard({
         <div className="flex size-14 items-center justify-center rounded-xl border border-primary/20 bg-primary/5 text-primary shadow-2xs">
           <IconUser size={28} />
         </div>
-        <h3 className="mt-2.5 text-base font-bold text-foreground">
+        <h3 className="mt-2.5 text-base font-bold text-foreground line-clamp-1">
           {company.name}
         </h3>
-        <p className="text-xs text-muted-foreground">{company.email}</p>
+        <p className="text-xs text-muted-foreground line-clamp-1">{company.email}</p>
       </div>
 
       {/* Plan & AdminHub Row */}

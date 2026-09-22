@@ -13,7 +13,6 @@ import {
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
-import { Switch } from '@/components/ui/switch';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -53,6 +52,16 @@ import {
 import type { StaffMemberDTO, StaffPlanQuota } from '@/types/staff';
 import { StaffSheet } from './staff-sheet';
 import { DeleteConfirmDialog } from '@/components/dashboard/services/delete-confirm-dialog';
+import { SuspendUserModal } from '@/components/modals/suspend-user-modal';
+import { UserStatusDetailsModal } from '@/components/modals/user-status-details-modal';
+import {
+} from '@/actions/user-management';
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from '@/components/ui/tooltip';
 import { TablePaginationBar } from '@/components/shared/table-pagination-bar';
 import type { TagOption } from './staff-tag-picker';
 
@@ -89,6 +98,26 @@ export function StaffDataTable({
   const [deleteTarget, setDeleteTarget] = useState<StaffMemberDTO | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
   const [actionLoadingId, setActionLoadingId] = useState<string | null>(null);
+  const [suspendModalState, setSuspendModalState] = useState<{
+    open: boolean;
+    userId: string;
+    name: string;
+    email?: string;
+  }>({
+    open: false,
+    userId: '',
+    name: '',
+    email: '',
+  });
+  const [securityModalState, setSecurityModalState] = useState<{
+    open: boolean;
+    userId: string;
+    name: string;
+  }>({
+    open: false,
+    userId: '',
+    name: '',
+  });
 
   const updateFilters = useCallback(
     (updates: Record<string, string | null>) => {
@@ -243,6 +272,7 @@ export function StaffDataTable({
   };
 
   return (
+  <TooltipProvider>
     <div className="space-y-6">
       {/* Search & Filter Toolbar */}
       <div className="flex flex-col lg:flex-row items-start lg:items-center justify-between gap-4">
@@ -364,8 +394,9 @@ export function StaffDataTable({
               <TableHead className="w-[280px] font-semibold text-xs">Specialist</TableHead>
               <TableHead className="font-semibold text-xs">Assigned Locations</TableHead>
               <TableHead className="font-semibold text-xs">Assigned Services</TableHead>
-              <TableHead className="font-semibold text-xs w-[120px]">Color Code</TableHead>
-              <TableHead className="font-semibold text-xs w-[110px]">Status</TableHead>
+              <TableHead className="font-semibold text-xs w-[100px]">Color Code</TableHead>
+              <TableHead className="font-semibold text-xs w-[110px]">Login Access</TableHead>
+              <TableHead className="font-semibold text-xs w-[110px]">Account Status</TableHead>
               <TableHead className="text-right font-semibold text-xs w-[80px]">Actions</TableHead>
             </TableRow>
           </TableHeader>
@@ -489,19 +520,54 @@ export function StaffDataTable({
                       </div>
                     </TableCell>
 
-                    {/* Active Status Switch */}
+                    {/* Login Access Badge */}
                     <TableCell>
-                      <div className="flex items-center gap-2">
-                        <Switch
-                          checked={stf.isActive}
-                          disabled={isLoading}
-                          onCheckedChange={() => handleToggleStatus(stf)}
-                          aria-label={`Toggle active state for ${stf.name}`}
-                        />
-                        <span className="text-xs text-muted-foreground">
-                          {stf.isActive ? 'Active' : 'Inactive'}
-                        </span>
-                      </div>
+                      <Badge
+                        variant="outline"
+                        className={
+                          stf.isEnableLogin !== false
+                            ? "border-emerald-500/20 bg-emerald-500/10 text-[10px] font-semibold text-emerald-600 dark:text-emerald-400"
+                            : "border-amber-500/20 bg-amber-500/10 text-[10px] font-semibold text-amber-600 dark:text-amber-400"
+                        }
+                      >
+                        {stf.isEnableLogin !== false ? "Login Allowed" : "Login Disabled"}
+                      </Badge>
+                    </TableCell>
+
+                    {/* Account Status Badge with Tooltip */}
+                    <TableCell>
+                      {!stf.isActive ? (
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <Badge
+                              variant="outline"
+                              className="cursor-help border-destructive/30 bg-destructive/10 text-[10px] font-semibold text-destructive"
+                            >
+                              Suspended
+                            </Badge>
+                          </TooltipTrigger>
+                          <TooltipContent className="max-w-xs text-xs">
+                            <p className="font-semibold">Account Suspended</p>
+                            {stf.suspendedReason && (
+                              <p className="mt-0.5 text-muted-foreground">
+                                Reason: {stf.suspendedReason}
+                              </p>
+                            )}
+                            {stf.suspendedAt && (
+                              <p className="mt-0.5 text-[10px] text-muted-foreground">
+                                Date: {new Date(stf.suspendedAt).toLocaleDateString()}
+                              </p>
+                            )}
+                          </TooltipContent>
+                        </Tooltip>
+                      ) : (
+                        <Badge
+                          variant="outline"
+                          className="border-emerald-500/20 bg-emerald-500/10 text-[10px] font-semibold text-emerald-600 dark:text-emerald-400"
+                        >
+                          Active
+                        </Badge>
+                      )}
                     </TableCell>
 
                     {/* Actions Menu */}
@@ -625,6 +691,26 @@ export function StaffDataTable({
         onConfirm={handleDeleteConfirm}
         isDeleting={isDeleting}
       />
+      {/* Suspension Modal */}
+      <SuspendUserModal
+        open={suspendModalState.open}
+        onOpenChange={(open) => setSuspendModalState((prev) => ({ ...prev, open }))}
+        userId={suspendModalState.userId}
+        userName={suspendModalState.name}
+        userEmail={suspendModalState.email}
+        onSuccess={() => router.refresh()}
+      />
+
+      {/* Security Telemetry Modal */}
+      <UserStatusDetailsModal
+        open={securityModalState.open}
+        onOpenChange={(open) => setSecurityModalState((prev) => ({ ...prev, open }))}
+        userId={securityModalState.userId}
+        userName={securityModalState.name}
+        onUpdated={() => router.refresh()}
+      />
     </div>
+  </TooltipProvider>
   );
 }
+

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useTransition } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
@@ -9,6 +9,7 @@ import {
   IconLayoutList,
   IconLayoutGrid,
   IconPlus,
+  IconAlertTriangle,
 } from "@tabler/icons-react";
 import { Button } from "@/components/ui/button";
 import {
@@ -16,6 +17,14 @@ import {
   TooltipContent,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import {
   CompanyItem,
   PlanOption,
@@ -27,10 +36,13 @@ import {
 import { CompanyCard } from "./company-card";
 import { NewSubscriberCard } from "./new-subscriber-card";
 import { CompanyDataTable } from "./company-data-table";
+import { getCompaniesAction } from "@/actions/admin-company";
 import {
-  toggleCompanyStatusAction,
-  getCompaniesAction,
-} from "@/actions/admin-company";
+  toggleUserLoginAccessAction,
+  reactivateUserAction,
+} from "@/actions/user-management";
+import { SuspendUserModal } from "@/components/modals/suspend-user-modal";
+import { UserStatusDetailsModal } from "@/components/modals/user-status-details-modal";
 
 interface SubscribersViewProps {
   initialCompanies: CompanyItem[];
@@ -44,6 +56,7 @@ export function SubscribersView({
   const router = useRouter();
   const [companies, setCompanies] = useState<CompanyItem[]>(initialCompanies);
   const [prevInitialCompanies, setPrevInitialCompanies] = useState(initialCompanies);
+  const [isPending, startTransition] = useTransition();
 
   // Sync state during render when initialCompanies changes without cascading renders
   if (initialCompanies !== prevInitialCompanies) {
@@ -57,7 +70,20 @@ export function SubscribersView({
   const [resetCompany, setResetCompany] = useState<CompanyItem | null>(null);
   const [deleteCompany, setDeleteCompany] = useState<CompanyItem | null>(null);
 
-  // Refetch companies immediately upon create/edit/delete/reset
+  // Security / Suspension State
+  const [suspendTarget, setSuspendTarget] = useState<CompanyItem | null>(null);
+  const [securityDetailsTarget, setSecurityDetailsTarget] = useState<{
+    userId: string;
+    userName: string;
+    email: string;
+    role: string;
+  } | null>(null);
+  const [confirmLoginTarget, setConfirmLoginTarget] = useState<{
+    company: CompanyItem;
+    currentAllowed: boolean;
+  } | null>(null);
+
+  // Refetch companies immediately upon changes
   async function handleCompaniesChanged() {
     try {
       const updated = await getCompaniesAction();
@@ -70,29 +96,66 @@ export function SubscribersView({
     router.refresh();
   }
 
-  async function handleToggleStatus(companyId: string, currentStatus: boolean) {
-    const nextStatus = !currentStatus;
-    setCompanies((prev) =>
-      prev.map((c) => (c.id === companyId ? { ...c, isActive: nextStatus } : c))
-    );
+  function handleInitiateToggleLogin(companyId: string, currentAllowed: boolean) {
+    const target = companies.find((c) => c.id === companyId);
+    if (!target) return;
 
-    const res = await toggleCompanyStatusAction(companyId, nextStatus);
-    if (res.success) {
-      toast.success(
-        `Subscriber is now ${nextStatus ? "Active" : "Disabled"}`
-      );
-      router.refresh();
+    if (currentAllowed) {
+      // Disabling login -> show warning confirmation dialog
+      setConfirmLoginTarget({ company: target, currentAllowed: true });
     } else {
-      setCompanies((prev) =>
-        prev.map((c) => (c.id === companyId ? { ...c, isActive: currentStatus } : c))
-      );
-      toast.error(res.error || "Failed to update subscriber status");
+      // Enabling login -> run immediately
+      executeToggleLogin(target);
     }
+  }
+
+  function executeToggleLogin(company: CompanyItem) {
+    startTransition(async () => {
+      const res = await toggleUserLoginAccessAction({ userId: company.id });
+      if (res.success) {
+        toast.success(res.message || "Login access updated successfully.");
+        setCompanies((prev) =>
+          prev.map((c) =>
+            c.id === company.id
+              ? { ...c, isEnableLogin: res.isEnableLogin }
+              : c
+          )
+        );
+        router.refresh();
+      } else {
+        toast.error(res.error || "Failed to update login access.");
+      }
+    });
+  }
+
+  function handleReactivate(company: CompanyItem) {
+    startTransition(async () => {
+      const res = await reactivateUserAction({ userId: company.id });
+      if (res.success) {
+        toast.success(res.message || "Company reactivated successfully.");
+        setCompanies((prev) =>
+          prev.map((c) =>
+            c.id === company.id
+              ? {
+                  ...c,
+                  isActive: true,
+                  isEnableLogin: true,
+                  suspendedReason: null,
+                  suspendedAt: null,
+                }
+              : c
+          )
+        );
+        router.refresh();
+      } else {
+        toast.error(res.error || "Failed to reactivate company.");
+      }
+    });
   }
 
   return (
     <div className="flex flex-col gap-6">
-      {/* Top Header matching screenshots */}
+      {/* Top Header */}
       <div className="flex flex-wrap items-center justify-between gap-4">
         {/* Title & Breadcrumbs */}
         <div className="flex flex-col gap-1">
@@ -113,7 +176,7 @@ export function SubscribersView({
           </div>
         </div>
 
-        {/* Right 3 action buttons matching screenshot */}
+        {/* Right 3 action buttons */}
         <div className="flex items-center gap-2">
           {/* Staff Button */}
           <Tooltip>
@@ -180,7 +243,17 @@ export function SubscribersView({
               onEdit={setEditCompany}
               onDelete={setDeleteCompany}
               onResetPassword={setResetCompany}
-              onToggleStatus={handleToggleStatus}
+              onToggleStatus={handleInitiateToggleLogin}
+              onSuspend={setSuspendTarget}
+              onReactivate={handleReactivate}
+              onViewSecurity={(c) =>
+                setSecurityDetailsTarget({
+                  userId: c.id,
+                  userName: c.name,
+                  email: c.email,
+                  role: c.role,
+                })
+              }
             />
           ))}
 
@@ -193,7 +266,17 @@ export function SubscribersView({
           onEdit={setEditCompany}
           onDelete={setDeleteCompany}
           onResetPassword={setResetCompany}
-          onToggleStatus={handleToggleStatus}
+          onToggleStatus={handleInitiateToggleLogin}
+          onSuspend={setSuspendTarget}
+          onReactivate={handleReactivate}
+          onViewSecurity={(c) =>
+            setSecurityDetailsTarget({
+              userId: c.id,
+              userName: c.name,
+              email: c.email,
+              role: c.role,
+            })
+          }
         />
       )}
 
@@ -226,6 +309,80 @@ export function SubscribersView({
         company={deleteCompany}
         onSuccess={handleCompaniesChanged}
       />
+
+      {/* Suspension Modal */}
+      {suspendTarget && (
+        <SuspendUserModal
+          open={!!suspendTarget}
+          onOpenChange={(open) => !open && setSuspendTarget(null)}
+          userId={suspendTarget.id}
+          userName={suspendTarget.name}
+          userEmail={suspendTarget.email}
+          userRole={suspendTarget.role}
+          onSuccess={() => {
+            handleCompaniesChanged();
+          }}
+        />
+      )}
+
+      {/* Security Telemetry Details Modal */}
+      {securityDetailsTarget && (
+        <UserStatusDetailsModal
+          key={securityDetailsTarget.userId}
+          open={!!securityDetailsTarget}
+          onOpenChange={(open) => !open && setSecurityDetailsTarget(null)}
+          userId={securityDetailsTarget.userId}
+          userName={securityDetailsTarget.userName}
+          email={securityDetailsTarget.email}
+          role={securityDetailsTarget.role}
+        />
+      )}
+
+      {/* Confirm Disable Login Dialog */}
+      <Dialog
+        open={!!confirmLoginTarget}
+        onOpenChange={(open: boolean) => !open && setConfirmLoginTarget(null)}
+      >
+        <DialogContent className="sm:max-w-[420px] rounded-2xl p-6">
+          <DialogHeader>
+            <div className="flex items-center gap-2 text-amber-600 dark:text-amber-500">
+              <IconAlertTriangle size={20} />
+              <DialogTitle className="text-base font-bold text-foreground">
+                Disable Login Access?
+              </DialogTitle>
+            </div>
+            <DialogDescription className="text-xs text-muted-foreground pt-1.5 leading-relaxed">
+              Are you sure you want to disable login for{" "}
+              <strong className="text-foreground">{confirmLoginTarget?.company.name}</strong>?
+              This will immediately terminate all active sessions and block further sign-ins.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter className="mt-4 gap-2">
+            <Button
+              type="button"
+              variant="outline"
+              disabled={isPending}
+              onClick={() => setConfirmLoginTarget(null)}
+              className="rounded-lg text-xs"
+            >
+              Cancel
+            </Button>
+            <Button
+              type="button"
+              disabled={isPending}
+              onClick={() => {
+                if (confirmLoginTarget) {
+                  executeToggleLogin(confirmLoginTarget.company);
+                  setConfirmLoginTarget(null);
+                }
+              }}
+              className="rounded-lg bg-amber-600 hover:bg-amber-700 text-white text-xs font-semibold"
+            >
+              {isPending ? "Disabling..." : "Disable Login"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

@@ -102,7 +102,7 @@ export async function getStaffListAction(): Promise<StaffListResponse> {
 
     const [staffDocs, quota] = await Promise.all([
       Staff.find({ companyId, businessId })
-        .populate<{ userId: { _id?: Types.ObjectId; email?: string; mobileNo?: string } }>('userId', 'email mobileNo')
+        .populate<{ userId: { _id?: Types.ObjectId; email?: string; mobileNo?: string; isActive?: boolean; isEnableLogin?: boolean; suspendedReason?: string; suspendedAt?: Date } }>('userId', 'email mobileNo isActive isEnableLogin suspendedReason suspendedAt')
         .populate<{ roleId: { _id?: Types.ObjectId; name?: string } }>('roleId', 'name')
         .populate<{ locationIds: Array<{ _id: Types.ObjectId; name: string }> }>('locationIds', 'name')
         .populate<{ serviceIds: Array<{ _id: Types.ObjectId; name: string; price: number; duration: number }> }>('serviceIds', 'name price duration')
@@ -112,7 +112,7 @@ export async function getStaffListAction(): Promise<StaffListResponse> {
     ]);
 
     const data: StaffMemberDTO[] = staffDocs.map((doc) => {
-      const user = doc.userId as { _id?: Types.ObjectId; email?: string; mobileNo?: string } | null;
+      const user = doc.userId as { _id?: Types.ObjectId; email?: string; mobileNo?: string; isActive?: boolean; isEnableLogin?: boolean; suspendedReason?: string; suspendedAt?: Date } | null;
       const role = doc.roleId as { _id?: Types.ObjectId; name?: string } | null;
       const locations = (doc.locationIds || []) as unknown as Array<{ _id: Types.ObjectId; name: string }>;
       const services = (doc.serviceIds || []) as unknown as Array<{ _id: Types.ObjectId; name: string; price?: number; duration?: number }>;
@@ -129,7 +129,10 @@ export async function getStaffListAction(): Promise<StaffListResponse> {
         phone: user?.mobileNo || '',
         description: doc.description || '',
         colorCode: doc.colorCode || '#CEEDC1',
-        isActive: doc.isActive ?? true,
+        isActive: user ? (user.isActive !== false && doc.isActive !== false) : (doc.isActive ?? true),
+        isEnableLogin: user ? user.isEnableLogin !== false : true,
+        suspendedReason: user?.suspendedReason || undefined,
+        suspendedAt: user?.suspendedAt ? user.suspendedAt.toISOString() : undefined,
         locationIds: (doc.locationIds || []).map((id) => String((id as { _id?: Types.ObjectId })._id || id)),
         locations: locations.map((loc) => ({
           _id: String(loc._id),

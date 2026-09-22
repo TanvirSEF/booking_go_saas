@@ -19,6 +19,9 @@ import {
   IconArrowsSort,
   IconPower,
   IconRotateClockwise,
+  IconShieldCheck,
+  IconUserX,
+  IconUserCheck,
 } from "@tabler/icons-react";
 import {
   Table,
@@ -45,6 +48,9 @@ interface CompanyDataTableProps {
   onDelete: (company: CompanyItem) => void;
   onResetPassword: (company: CompanyItem) => void;
   onToggleStatus: (companyId: string, currentStatus: boolean) => void;
+  onSuspend?: (company: CompanyItem) => void;
+  onReactivate?: (company: CompanyItem) => void;
+  onViewSecurity?: (company: CompanyItem) => void;
 }
 
 export function CompanyDataTable({
@@ -53,6 +59,9 @@ export function CompanyDataTable({
   onDelete,
   onResetPassword,
   onToggleStatus,
+  onSuspend,
+  onReactivate,
+  onViewSecurity,
 }: CompanyDataTableProps) {
   const router = useRouter();
   const pathname = usePathname();
@@ -148,13 +157,11 @@ export function CompanyDataTable({
   function handleExport() {
     const csvContent =
       "data:text/csv;charset=utf-8," +
-      ["No,Name,Email,Role,Status,Plan,Created"]
+      ["Name,Email,Role,Status,Login_Access,Plan,Created_At"]
         .concat(
           filteredCompanies.map(
-            (c, i) =>
-              `${i + 1},"${c.name}","${c.email}","${c.role}","${
-                c.isActive ? "Active" : "Disabled"
-              }","${c.planName || "Basic"}","${c.createdAt}"`
+            (c) =>
+              `"${c.name}","${c.email}","${c.role}","${c.isActive ? "Active" : "Suspended"}","${c.isEnableLogin !== false ? "Allowed" : "Disabled"}","${c.planName || "Basic"}","${c.createdAt}"`
           )
         )
         .join("\n");
@@ -162,94 +169,84 @@ export function CompanyDataTable({
     const encodedUri = encodeURI(csvContent);
     const link = document.createElement("a");
     link.setAttribute("href", encodedUri);
-    link.setAttribute("download", `subscribers_export_${Date.now()}.csv`);
+    link.setAttribute("download", `subscribers_${Date.now()}.csv`);
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
-    toast.success("Subscribers list exported as CSV.");
+    toast.success("Subscribers exported successfully!");
   }
 
   function handleReset() {
     setSearchTerm("");
     setSortField(null);
-    updateFilters({ search: null });
-    toast.info("Search and filters reset.");
+    updateFilters({ search: null, page: "1" });
   }
 
   return (
-    <div className="flex flex-col gap-4 rounded-2xl border border-border/40 bg-card p-4 shadow-xs">
-      {/* Top Toolbar */}
+    <div className="flex flex-col gap-4">
+      {/* Search & Actions Bar */}
       <div className="flex flex-wrap items-center justify-between gap-3">
-        {/* Left: Search with clear button */}
-        <div className="relative flex-1 sm:max-w-xs">
+        {/* Left: Search input */}
+        <div className="relative w-full max-w-sm">
           <IconSearch
             size={16}
-            className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground"
+            className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground"
           />
           <Input
-            placeholder="Search subscribers..."
+            placeholder="Search subscribers by name, email..."
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
-            className="h-9 w-full rounded-lg pl-9 pr-8 text-xs sm:text-sm"
+            className="h-9 w-full rounded-xl pl-9 pr-8 text-xs shadow-2xs"
           />
           {searchTerm && (
             <button
-              type="button"
-              onClick={() => {
-                setSearchTerm("");
-                updateFilters({ search: null });
-              }}
-              className="absolute right-2.5 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+              onClick={handleReset}
+              className="absolute right-2.5 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground cursor-pointer"
             >
               <IconX size={14} />
             </button>
           )}
         </div>
 
-        {/* Right: Actions */}
+        {/* Right: Export & Action Buttons */}
         <div className="flex items-center gap-2">
-          {/* Download Button */}
           <Tooltip>
             <TooltipTrigger asChild>
               <Button
                 variant="outline"
-                size="icon-sm"
+                size="icon"
                 onClick={handleExport}
-                className="size-8 rounded-lg bg-cyan-500 text-white hover:bg-cyan-600 hover:text-white border-none shadow-2xs"
+                className="size-9 rounded-xl bg-primary text-primary-foreground hover:bg-primary/90 hover:text-primary-foreground border-none shadow-xs"
               >
-                <IconDownload size={15} />
+                <IconDownload size={18} />
               </Button>
             </TooltipTrigger>
-            <TooltipContent>Export CSV</TooltipContent>
+            <TooltipContent>Export Subscribers CSV</TooltipContent>
           </Tooltip>
 
-          {/* Reset Filter Button */}
           <Tooltip>
             <TooltipTrigger asChild>
               <Button
                 variant="outline"
-                size="icon-sm"
+                size="icon"
                 onClick={handleReset}
-                className="size-8 rounded-lg bg-rose-500 text-white hover:bg-rose-600 hover:text-white border-none shadow-2xs"
+                className="size-9 rounded-xl bg-primary text-primary-foreground hover:bg-primary/90 hover:text-primary-foreground border-none shadow-xs cursor-pointer"
               >
-                <IconRotate2 size={15} />
+                <IconRotate2 size={18} />
               </Button>
             </TooltipTrigger>
-            <TooltipContent>Reset</TooltipContent>
+            <TooltipContent>Reset Filters</TooltipContent>
           </Tooltip>
 
-          {/* Refresh Button */}
           <Tooltip>
             <TooltipTrigger asChild>
               <Button
                 variant="outline"
-                size="icon-sm"
-                onClick={() => {
-                  toast.info("Refreshed list");
-                }}
-                className="size-8 rounded-lg bg-amber-500 text-white hover:bg-amber-600 hover:text-white border-none shadow-2xs"
+                size="icon"
+                onClick={() => router.refresh()}
+                className="size-9 rounded-xl bg-primary text-primary-foreground hover:bg-primary/90 hover:text-primary-foreground border-none shadow-xs cursor-pointer"
               >
-                <IconRefresh size={15} />
+                <IconRefresh size={18} />
               </Button>
             </TooltipTrigger>
             <TooltipContent>Refresh</TooltipContent>
@@ -257,41 +254,46 @@ export function CompanyDataTable({
         </div>
       </div>
 
-      {/* Table Area */}
-      <div className="rounded-xl border border-border/40 overflow-hidden">
+      {/* Table */}
+      <div className="rounded-2xl border border-border/40 bg-card shadow-xs overflow-hidden">
         <Table>
-          <TableHeader className="bg-muted/40 text-[11px] font-bold uppercase tracking-wider text-muted-foreground">
-            <TableRow>
-              <TableHead className="w-12 text-center">NO</TableHead>
-              <TableHead className="w-16">AVATAR</TableHead>
+          <TableHeader>
+            <TableRow className="bg-muted/40 hover:bg-muted/40">
+              <TableHead className="w-12 text-center text-xs font-semibold text-muted-foreground">
+                #
+              </TableHead>
+              <TableHead className="w-12 text-center text-xs font-semibold text-muted-foreground">
+                User
+              </TableHead>
               <TableHead
+                className="cursor-pointer select-none text-xs font-semibold text-foreground hover:text-primary"
                 onClick={() => toggleSort("name")}
-                className="cursor-pointer select-none hover:text-foreground"
               >
-                <div className="flex items-center gap-1">
-                  <span>NAME</span>
-                  <IconArrowsSort size={12} className="opacity-60" />
+                <div className="flex items-center gap-1.5">
+                  Name
+                  <IconArrowsSort size={14} className="text-muted-foreground" />
                 </div>
               </TableHead>
-              <TableHead>EMAIL</TableHead>
-              <TableHead
-                onClick={() => toggleSort("role")}
-                className="cursor-pointer select-none hover:text-foreground"
-              >
-                <div className="flex items-center gap-1">
-                  <span>ROLE</span>
-                  <IconArrowsSort size={12} className="opacity-60" />
-                </div>
+              <TableHead className="text-xs font-semibold text-foreground">
+                Email
               </TableHead>
-              <TableHead className="text-right pr-4">ACTION</TableHead>
+              <TableHead className="text-xs font-semibold text-foreground">
+                Login Access
+              </TableHead>
+              <TableHead className="text-xs font-semibold text-foreground">
+                Account Status
+              </TableHead>
+              <TableHead className="text-right text-xs font-semibold text-foreground pr-6">
+                Actions
+              </TableHead>
             </TableRow>
           </TableHeader>
-          <TableBody className="text-xs">
+          <TableBody>
             {paginatedCompanies.length === 0 ? (
               <TableRow>
                 <TableCell
-                  colSpan={6}
-                  className="h-40 text-center"
+                  colSpan={7}
+                  className="h-32 text-center text-muted-foreground"
                 >
                   <div className="flex flex-col items-center justify-center gap-2 py-6">
                     <div className="flex size-12 items-center justify-center rounded-full bg-muted/60 text-muted-foreground">
@@ -318,143 +320,251 @@ export function CompanyDataTable({
                 </TableCell>
               </TableRow>
             ) : (
-              paginatedCompanies.map((c, idx) => (
-                <TableRow key={c.id} className="hover:bg-muted/20">
-                  <TableCell className="text-center font-medium text-muted-foreground">
-                    {startIndex + idx + 1}
-                  </TableCell>
-                  <TableCell>
-                    <div className="flex size-8 items-center justify-center rounded-lg border border-primary/20 bg-primary/5 text-primary">
-                      <IconUser size={16} />
-                    </div>
-                  </TableCell>
-                  <TableCell className="font-semibold text-foreground">
-                    {c.name}
-                  </TableCell>
-                  <TableCell className="text-muted-foreground">{c.email}</TableCell>
-                  <TableCell>
-                    <Badge className="bg-primary text-[10px] font-semibold text-primary-foreground">
-                      {c.role}
-                    </Badge>
-                  </TableCell>
-                  <TableCell className="text-right">
-                    {/* Row of colorful action buttons matching table-view.png */}
-                    <div className="flex items-center justify-end gap-1">
-                      {/* 1. AdminHub: Purple */}
-                      <Tooltip>
-                        <TooltipTrigger asChild>
-                          <Button
-                            size="icon-xs"
-                            onClick={() => {
-                              router.push(`/dashboard?tenant=${c.id}`);
-                            }}
-                            className="size-7 rounded-md bg-primary text-primary-foreground hover:bg-primary/90 shadow-2xs"
-                          >
-                            <IconApps size={14} />
-                          </Button>
-                        </TooltipTrigger>
-                        <TooltipContent>AdminHub</TooltipContent>
-                      </Tooltip>
+              paginatedCompanies.map((c, idx) => {
+                const isSuspended = c.isActive === false;
+                const isLoginAllowed = c.isEnableLogin !== false;
 
-                      {/* 2. Plan Switch: Dark Slate */}
-                      <Tooltip>
-                        <TooltipTrigger asChild>
-                          <Button
-                            size="icon-xs"
-                            onClick={() => onEdit(c)}
-                            className="size-7 rounded-md bg-slate-700 text-white hover:bg-slate-800 shadow-2xs"
-                          >
-                            <IconSwitchHorizontal size={14} />
-                          </Button>
-                        </TooltipTrigger>
-                        <TooltipContent>Change Plan</TooltipContent>
-                      </Tooltip>
+                return (
+                  <TableRow key={c.id} className="hover:bg-muted/20">
+                    <TableCell className="text-center font-medium text-muted-foreground">
+                      {startIndex + idx + 1}
+                    </TableCell>
+                    <TableCell>
+                      <div className="flex size-8 items-center justify-center rounded-lg border border-primary/20 bg-primary/5 text-primary">
+                        <IconUser size={16} />
+                      </div>
+                    </TableCell>
+                    <TableCell className="font-semibold text-foreground">
+                      <div>
+                        <span>{c.name}</span>
+                        {c.businessName && (
+                          <p className="text-[11px] font-normal text-muted-foreground">
+                            {c.businessName}
+                          </p>
+                        )}
+                      </div>
+                    </TableCell>
+                    <TableCell className="text-muted-foreground">{c.email}</TableCell>
 
-                      {/* 3. Business Link: Cyan */}
-                      <Tooltip>
-                        <TooltipTrigger asChild>
-                          <Button
-                            size="icon-xs"
-                            onClick={() => {
-                              if (c.businessSlug) {
-                                window.open(`/${c.businessSlug}`, "_blank");
-                              } else {
-                                toast.info("No business link configured");
+                    {/* Login Access Badge */}
+                    <TableCell>
+                      <Badge
+                        variant="outline"
+                        className={
+                          isLoginAllowed
+                            ? "border-emerald-500/20 bg-emerald-500/10 text-[10px] font-semibold text-emerald-600 dark:text-emerald-400"
+                            : "border-amber-500/20 bg-amber-500/10 text-[10px] font-semibold text-amber-600 dark:text-amber-400"
+                        }
+                      >
+                        {isLoginAllowed ? "Login Allowed" : "Login Disabled"}
+                      </Badge>
+                    </TableCell>
+
+                    {/* Account Status Badge with Tooltip */}
+                    <TableCell>
+                      {isSuspended ? (
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <Badge
+                              variant="outline"
+                              className="cursor-help border-destructive/30 bg-destructive/10 text-[10px] font-semibold text-destructive"
+                            >
+                              Suspended
+                            </Badge>
+                          </TooltipTrigger>
+                          <TooltipContent className="max-w-xs text-xs">
+                            <p className="font-semibold">Account Suspended</p>
+                            {c.suspendedReason && (
+                              <p className="mt-0.5 text-muted-foreground">
+                                Reason: {c.suspendedReason}
+                              </p>
+                            )}
+                            {c.suspendedAt && (
+                              <p className="mt-0.5 text-[10px] text-muted-foreground">
+                                Date: {new Date(c.suspendedAt).toLocaleDateString()}
+                              </p>
+                            )}
+                          </TooltipContent>
+                        </Tooltip>
+                      ) : (
+                        <Badge
+                          variant="outline"
+                          className="border-emerald-500/20 bg-emerald-500/10 text-[10px] font-semibold text-emerald-600 dark:text-emerald-400"
+                        >
+                          Active
+                        </Badge>
+                      )}
+                    </TableCell>
+
+                    <TableCell className="text-right">
+                      {/* Action buttons */}
+                      <div className="flex items-center justify-end gap-1">
+                        {/* 1. AdminHub: Purple */}
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <Button
+                              size="icon-xs"
+                              onClick={() => {
+                                router.push(`/dashboard?tenant=${c.id}`);
+                              }}
+                              className="size-7 rounded-md bg-primary text-primary-foreground hover:bg-primary/90 shadow-2xs cursor-pointer"
+                            >
+                              <IconApps size={14} />
+                            </Button>
+                          </TooltipTrigger>
+                          <TooltipContent>AdminHub</TooltipContent>
+                        </Tooltip>
+
+                        {/* 2. Plan Switch: Dark Slate */}
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <Button
+                              size="icon-xs"
+                              onClick={() => onEdit(c)}
+                              className="size-7 rounded-md bg-slate-700 text-white hover:bg-slate-800 shadow-2xs cursor-pointer"
+                            >
+                              <IconSwitchHorizontal size={14} />
+                            </Button>
+                          </TooltipTrigger>
+                          <TooltipContent>Change Plan</TooltipContent>
+                        </Tooltip>
+
+                        {/* 3. Business Link: Cyan */}
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <Button
+                              size="icon-xs"
+                              onClick={() => {
+                                if (c.businessSlug) {
+                                  window.open(`/${c.businessSlug}`, "_blank");
+                                } else {
+                                  toast.info("No business link configured");
+                                }
+                              }}
+                              className="size-7 rounded-md bg-cyan-500 text-white hover:bg-cyan-600 shadow-2xs cursor-pointer"
+                            >
+                              <IconTrendingUp size={14} />
+                            </Button>
+                          </TooltipTrigger>
+                          <TooltipContent>Business Link</TooltipContent>
+                        </Tooltip>
+
+                        {/* 4. Reset Password: Amber */}
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <Button
+                              size="icon-xs"
+                              onClick={() => onResetPassword(c)}
+                              className="size-7 rounded-md bg-amber-500 text-white hover:bg-amber-600 shadow-2xs cursor-pointer"
+                            >
+                              <IconAdjustmentsHorizontal size={14} />
+                            </Button>
+                          </TooltipTrigger>
+                          <TooltipContent>Reset Password</TooltipContent>
+                        </Tooltip>
+
+                        {/* 5. Security Telemetry */}
+                        {onViewSecurity && (
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <Button
+                                size="icon-xs"
+                                onClick={() => onViewSecurity(c)}
+                                className="size-7 rounded-md bg-indigo-600 text-white hover:bg-indigo-700 shadow-2xs cursor-pointer"
+                              >
+                                <IconShieldCheck size={14} />
+                              </Button>
+                            </TooltipTrigger>
+                            <TooltipContent>Security Telemetry</TooltipContent>
+                          </Tooltip>
+                        )}
+
+                        {/* 6. Suspend / Reactivate Company */}
+                        {isSuspended ? (
+                          onReactivate && (
+                            <Tooltip>
+                              <TooltipTrigger asChild>
+                                <Button
+                                  size="icon-xs"
+                                  onClick={() => onReactivate(c)}
+                                  className="size-7 rounded-md bg-emerald-600 text-white hover:bg-emerald-700 shadow-2xs cursor-pointer"
+                                >
+                                  <IconUserCheck size={14} />
+                                </Button>
+                              </TooltipTrigger>
+                              <TooltipContent>Reactivate Company</TooltipContent>
+                            </Tooltip>
+                          )
+                        ) : (
+                          onSuspend && (
+                            <Tooltip>
+                              <TooltipTrigger asChild>
+                                <Button
+                                  size="icon-xs"
+                                  onClick={() => onSuspend(c)}
+                                  className="size-7 rounded-md bg-rose-600 text-white hover:bg-rose-700 shadow-2xs cursor-pointer"
+                                >
+                                  <IconUserX size={14} />
+                                </Button>
+                              </TooltipTrigger>
+                              <TooltipContent>Suspend Company</TooltipContent>
+                            </Tooltip>
+                          )
+                        )}
+
+                        {/* 7. Login Disable / Enable: Power Icon */}
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <Button
+                              size="icon-xs"
+                              onClick={() => onToggleStatus(c.id, isLoginAllowed)}
+                              className={
+                                "size-7 rounded-md text-white shadow-2xs cursor-pointer " +
+                                (isLoginAllowed
+                                  ? "bg-amber-600 hover:bg-amber-700"
+                                  : "bg-emerald-500 hover:bg-emerald-600")
                               }
-                            }}
-                            className="size-7 rounded-md bg-cyan-500 text-white hover:bg-cyan-600 shadow-2xs"
-                          >
-                            <IconTrendingUp size={14} />
-                          </Button>
-                        </TooltipTrigger>
-                        <TooltipContent>Business Link</TooltipContent>
-                      </Tooltip>
+                            >
+                              <IconPower size={14} />
+                            </Button>
+                          </TooltipTrigger>
+                          <TooltipContent>
+                            {isLoginAllowed ? "Disable Login" : "Enable Login"}
+                          </TooltipContent>
+                        </Tooltip>
 
-                      {/* 4. Reset Password: Amber */}
-                      <Tooltip>
-                        <TooltipTrigger asChild>
-                          <Button
-                            size="icon-xs"
-                            onClick={() => onResetPassword(c)}
-                            className="size-7 rounded-md bg-amber-500 text-white hover:bg-amber-600 shadow-2xs"
-                          >
-                            <IconAdjustmentsHorizontal size={14} />
-                          </Button>
-                        </TooltipTrigger>
-                        <TooltipContent>Reset Password</TooltipContent>
-                      </Tooltip>
+                        {/* 8. Edit: Teal */}
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <Button
+                              size="icon-xs"
+                              onClick={() => onEdit(c)}
+                              className="size-7 rounded-md bg-teal-500 text-white hover:bg-teal-600 shadow-2xs cursor-pointer"
+                            >
+                              <IconPencil size={14} />
+                            </Button>
+                          </TooltipTrigger>
+                          <TooltipContent>Edit</TooltipContent>
+                        </Tooltip>
 
-                      {/* 5. Login Disable / Enable: Rose/Red */}
-                      <Tooltip>
-                        <TooltipTrigger asChild>
-                          <Button
-                            size="icon-xs"
-                            onClick={() => onToggleStatus(c.id, c.isActive)}
-                            className={`size-7 rounded-md text-white shadow-2xs ${
-                              c.isActive
-                                ? "bg-rose-500 hover:bg-rose-600"
-                                : "bg-emerald-500 hover:bg-emerald-600"
-                            }`}
-                          >
-                            <IconPower size={14} />
-                          </Button>
-                        </TooltipTrigger>
-                        <TooltipContent>
-                          {c.isActive ? "Disable Login" : "Enable Login"}
-                        </TooltipContent>
-                      </Tooltip>
-
-                      {/* 6. Edit: Teal */}
-                      <Tooltip>
-                        <TooltipTrigger asChild>
-                          <Button
-                            size="icon-xs"
-                            onClick={() => onEdit(c)}
-                            className="size-7 rounded-md bg-teal-500 text-white hover:bg-teal-600 shadow-2xs"
-                          >
-                            <IconPencil size={14} />
-                          </Button>
-                        </TooltipTrigger>
-                        <TooltipContent>Edit</TooltipContent>
-                      </Tooltip>
-
-                      {/* 7. Delete: Red */}
-                      <Tooltip>
-                        <TooltipTrigger asChild>
-                          <Button
-                            size="icon-xs"
-                            onClick={() => onDelete(c)}
-                            className="size-7 rounded-md bg-red-500 text-white hover:bg-red-600 shadow-2xs"
-                          >
-                            <IconTrash size={14} />
-                          </Button>
-                        </TooltipTrigger>
-                        <TooltipContent>Delete</TooltipContent>
-                      </Tooltip>
-                    </div>
-                  </TableCell>
-                </TableRow>
-              ))
+                        {/* 9. Delete: Red */}
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <Button
+                              size="icon-xs"
+                              onClick={() => onDelete(c)}
+                              className="size-7 rounded-md bg-red-500 text-white hover:bg-red-600 shadow-2xs cursor-pointer"
+                            >
+                              <IconTrash size={14} />
+                            </Button>
+                          </TooltipTrigger>
+                          <TooltipContent>Delete</TooltipContent>
+                        </Tooltip>
+                      </div>
+                    </TableCell>
+                  </TableRow>
+                );
+              })
             )}
           </TableBody>
         </Table>

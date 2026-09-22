@@ -1,6 +1,7 @@
 'use client';
 
-import React, { useState, useTransition } from 'react';
+import React, { useState, useRef, useTransition } from 'react';
+import { RecaptchaWidget, type RecaptchaWidgetRef } from '@/components/common/recaptcha-widget';
 import { useWizard } from '@/components/wizard/wizard-context';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -59,6 +60,8 @@ export function Step5ReviewConfirm() {
   } = state;
 
   const [isPending, startTransition] = useTransition();
+  const [recaptchaToken, setRecaptchaToken] = useState<string | null>(null);
+  const recaptchaRef = useRef<RecaptchaWidgetRef>(null);
   const [isCouponPending, setIsCouponPending] = useState(false);
   const [couponInput, setCouponInput] = useState('');
   const [couponError, setCouponError] = useState<string | null>(null);
@@ -162,6 +165,9 @@ export function Step5ReviewConfirm() {
 
     startTransition(async () => {
       try {
+        const token = await recaptchaRef.current?.execute('book_appointment');
+        const activeToken = token || recaptchaToken || undefined;
+
         const response = await createAppointment({
           businessId: business.id,
           serviceId: selectedService.id,
@@ -178,6 +184,7 @@ export function Step5ReviewConfirm() {
           dob: customer.dob,
           notes: customer.notes,
           paymentType: paymentType,
+          recaptchaToken: activeToken,
         });
 
         if (response.success && response.appointmentId) {
@@ -228,6 +235,8 @@ export function Step5ReviewConfirm() {
           setSubmitError(response.error || 'Failed to place appointment. Please try again.');
         }
       } catch (err: unknown) {
+        recaptchaRef.current?.reset();
+        setRecaptchaToken(null);
         setSubmitError(err instanceof Error ? err.message : 'A fatal error occurred during booking.');
       }
     });
@@ -670,6 +679,14 @@ export function Step5ReviewConfirm() {
           </div>
 
           {/* Action Trigger Buttons */}
+          {/* Google reCAPTCHA Protection */}
+          <RecaptchaWidget
+            ref={recaptchaRef}
+            action="book_appointment"
+            onChange={setRecaptchaToken}
+            className="my-2"
+          />
+
           <div className="flex items-center gap-3">
             <Button
               type="button"

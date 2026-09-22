@@ -209,6 +209,11 @@ export const companyNavigationData: SidebarGroupData[] = [
         icon: IconCreditCard,
       },
       {
+        title: "Roles & Permissions",
+        url: "/dashboard/settings/roles",
+        icon: IconShieldLock,
+      },
+      {
         title: "Email Templates",
         url: "/dashboard/settings/email-templates",
         icon: IconMail,
