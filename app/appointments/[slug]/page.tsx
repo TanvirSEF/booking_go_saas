@@ -81,7 +81,7 @@ export default async function AppointmentBookingPage({
   const [locationsDocs, categoriesDocs, servicesDocs, staffDocs, customFieldsDocs] =
     await Promise.all([
       Location.find({ businessId }).lean(),
-      Category.find({ businessId }).lean(),
+      Category.find({ businessId, isActive: { $ne: false } }).sort({ order: 1, name: 1 }).lean(),
       Service.find({ businessId }).lean(),
       Staff.find({ businessId }).lean(),
       CustomField.find({ businessId, status: { $ne: 'inactive' } }).sort({ sortOrder: 1 }).lean(),

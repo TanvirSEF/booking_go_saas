@@ -67,7 +67,7 @@ export default async function EmbedBookingPage({
   const [locationsDocs, categoriesDocs, servicesDocs, staffDocs, customFieldsDocs] =
     await Promise.all([
       Location.find({ businessId, isActive: true }).sort({ name: 1 }).lean(),
-      Category.find({ businessId }).sort({ name: 1 }).lean(),
+      Category.find({ businessId, isActive: { $ne: false } }).sort({ order: 1, name: 1 }).lean(),
       Service.find({ businessId, isActive: true }).sort({ name: 1 }).lean(),
       Staff.find({ businessId, isActive: true }).sort({ name: 1 }).lean(),
       CustomField.find({ businessId }).lean(),
