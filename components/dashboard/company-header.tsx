@@ -101,6 +101,13 @@ export function CompanyHeader({ user, businessName, businessSlug }: CompanyHeade
               </div>
             </DropdownMenuLabel>
             <DropdownMenuSeparator />
+            <DropdownMenuItem asChild className="cursor-pointer rounded-lg text-xs">
+              <Link href="/dashboard/profile" className="flex items-center gap-2">
+                <IconUser size={15} />
+                <span>Profile</span>
+              </Link>
+            </DropdownMenuItem>
+            <DropdownMenuSeparator />
             <DropdownMenuItem
               onClick={() => signOut({ callbackUrl: "/login" })}
               className="cursor-pointer rounded-lg text-xs text-destructive focus:bg-destructive/10 focus:text-destructive"

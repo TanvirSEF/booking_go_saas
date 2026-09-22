@@ -10,22 +10,22 @@ import type { UserProfileDTO } from "@/types/user-profile";
 export const dynamic = "force-dynamic";
 
 export const metadata: Metadata = {
-  title: "Administrator Profile | Super Admin",
+  title: "Account Profile | Company Dashboard",
   description:
-    "Manage personal details, password security, system theme preferences, and access privileges.",
+    "Manage your company administrative profile, credentials, and interface preferences.",
 };
 
-export default async function SuperAdminProfilePage() {
-  const session = await requireRole(ACCESS.superAdmin, "/super-admin/profile");
+export default async function CompanyProfilePage() {
+  const session = await requireRole(ACCESS.company, "/dashboard/profile");
 
   const res = await getUserProfileAction();
   const profile: UserProfileDTO = res.data || {
     id: session.user.id || "",
-    name: session.user.name || "Super Admin",
+    name: session.user.name || "Company Admin",
     email: session.user.email || "",
     mobileNo: "",
     avatar: "/uploads/users-avatar/avatar.png",
-    role: session.user.role || "super admin",
+    role: session.user.role || "company",
     lang: "en",
     darkMode: false,
     createdAt: new Date().toISOString(),
@@ -34,13 +34,10 @@ export default async function SuperAdminProfilePage() {
   return (
     <div className="min-h-screen pb-16">
       <PageHeader
-        title="Administrator Profile"
-        description="Personal account details, security credentials, and interface preferences."
+        title="Account Profile"
+        description="Manage your personal information, login credentials, and display preferences."
         icon={<IconUser size={22} />}
-        breadcrumbs={[
-          { label: "Dashboard", href: "/super-admin" },
-          { label: "Profile" },
-        ]}
+        breadcrumbs={[{ label: "Account Profile" }]}
       />
 
       <main className="w-full mx-auto px-4 sm:px-6 pt-8">
