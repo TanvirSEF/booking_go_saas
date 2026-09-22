@@ -23,6 +23,7 @@ export interface IAppointment {
   date: string;
   time: string;
   durationMinutes: number;
+  bufferMinutes?: number;
   price: number;
   notes?: string;
   paymentType: string;
@@ -119,6 +120,10 @@ const AppointmentSchema = new Schema<IAppointmentDocument>(
       type: Number,
       required: true,
       default: 30,
+    },
+    bufferMinutes: {
+      type: Number,
+      default: 0,
     },
     price: {
       type: Number,

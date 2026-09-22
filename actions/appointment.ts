@@ -155,6 +155,10 @@ export async function createAppointment(
     }
 
     const duration = Math.max(1, service.durationMinutes || 30);
+    const resolvedBuffer =
+      service.bufferMinutes !== undefined && service.bufferMinutes !== null && service.bufferMinutes >= 0
+        ? service.bufferMinutes
+        : (business.timeInterval ?? 0);
 
     const slotCheck = await validateSlotAvailability({
       businessId,
@@ -163,6 +167,7 @@ export async function createAppointment(
       date: normalizedDate,
       time,
       durationMinutes: duration,
+      bufferMinutes: resolvedBuffer,
     });
 
     if (!slotCheck.available) {
@@ -274,6 +279,7 @@ export async function createAppointment(
       date: normalizedDate,
       time,
       durationMinutes: duration,
+      bufferMinutes: resolvedBuffer,
       price: service.price || 0,
       notes: notes || '',
       paymentType,

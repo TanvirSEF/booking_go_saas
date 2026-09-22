@@ -18,6 +18,7 @@ export interface CalculatedSlot {
   formattedTime: string;
   serviceId: string;
   durationMinutes: number;
+  bufferMinutes?: number;
   availableStaffIds: string[];
 }
 
@@ -28,6 +29,7 @@ export interface ValidateSlotParams {
   date: string;
   time: string;
   durationMinutes: number;
+  bufferMinutes?: number;
 }
 
 export function timeToMinutes(timeStr: string): number {
@@ -52,6 +54,48 @@ export function isIntervalOverlapping(
   endB: number
 ): boolean {
   return Math.max(startA, startB) < Math.min(endA, endB);
+}
+
+/**
+ * Determines whether a candidate slot (and its trailing cleaning/travel buffer)
+ * collides with an existing booking (and its trailing cleaning/travel buffer).
+ */
+export function isSlotCollidingWithBooking(
+  slotStart: number,
+  slotEnd: number,
+  slotBuffer: number,
+  bookingStart: number,
+  bookingEnd: number,
+  bookingBuffer: number
+): { collides: boolean; isDirectCollision: boolean; isBufferCollision: boolean } {
+  // Direct appointment service overlap
+  const directCollision = isIntervalOverlapping(slotStart, slotEnd, bookingStart, bookingEnd);
+  if (directCollision) {
+    return { collides: true, isDirectCollision: true, isBufferCollision: false };
+  }
+
+  // Candidate slot + its trailing buffer overlaps with booking's core service time
+  const candidateBufferCollides = isIntervalOverlapping(
+    slotStart,
+    slotEnd + slotBuffer,
+    bookingStart,
+    bookingEnd
+  );
+
+  // Existing booking + its trailing buffer overlaps with candidate slot's core service time
+  const bookingBufferCollides = isIntervalOverlapping(
+    slotStart,
+    slotEnd,
+    bookingStart,
+    bookingEnd + bookingBuffer
+  );
+
+  const collides = candidateBufferCollides || bookingBufferCollides;
+  return {
+    collides,
+    isDirectCollision: false,
+    isBufferCollision: collides,
+  };
 }
 
 export function normalizeDateString(dateStr: string): string {
@@ -112,6 +156,85 @@ export function parseBookedTime(timeStr: string, defaultDurationMinutes = 30): {
   };
 }
 
+/**
+ * Checks if target booking date is in the past or exceeds maximum advance booking horizon
+ */
+export function checkBookingHorizon(
+  targetDateStr: string,
+  maxAdvanceDays = 90
+): { valid: boolean; reason?: string } {
+  const normalized = normalizeDateString(targetDateStr);
+  const parts = normalized.split('-').map(Number);
+  if (parts.length < 3 || isNaN(parts[0]) || isNaN(parts[1]) || isNaN(parts[2])) {
+    return { valid: false, reason: 'Invalid date format' };
+  }
+  const [year, month, day] = parts;
+  const targetDate = new Date(year, month - 1, day, 0, 0, 0, 0);
+
+  const today = new Date();
+  const todayStart = new Date(today.getFullYear(), today.getMonth(), today.getDate(), 0, 0, 0, 0);
+
+  const diffMs = targetDate.getTime() - todayStart.getTime();
+  const diffDays = Math.floor(diffMs / (24 * 60 * 60 * 1000));
+
+  if (diffDays < 0) {
+    return { valid: false, reason: 'Cannot book appointment on a past date' };
+  }
+
+  if (diffDays > maxAdvanceDays) {
+    return {
+      valid: false,
+      reason: `Selected date exceeds maximum advance booking limit of ${maxAdvanceDays} days`,
+    };
+  }
+
+  return { valid: true };
+}
+
+/**
+ * Checks if candidate slot violates minimum notice requirements (e.g. 2 hours notice)
+ */
+export function checkMinimumNotice(
+  dateStr: string,
+  timeMinutes: number,
+  minimumNoticeHours = 1
+): { valid: boolean; reason?: string } {
+  if (minimumNoticeHours <= 0) return { valid: true };
+
+  const normalized = normalizeDateString(dateStr);
+  const [year, month, day] = normalized.split('-').map(Number);
+  const hours = Math.floor(timeMinutes / 60);
+  const minutes = timeMinutes % 60;
+  const slotDate = new Date(year, month - 1, day, hours, minutes, 0, 0);
+
+  const nowMs = Date.now();
+  const noticeMs = minimumNoticeHours * 60 * 60 * 1000;
+  const earliestAllowedMs = nowMs + noticeMs;
+
+  if (slotDate.getTime() < earliestAllowedMs) {
+    return {
+      valid: false,
+      reason: `Appointment violates minimum notice requirement of ${minimumNoticeHours} hour(s)`,
+    };
+  }
+
+  return { valid: true };
+}
+
+/**
+ * Resolves the effective cleaning/travel buffer window in minutes
+ * Priority: Service bufferMinutes > Business timeInterval > default 0
+ */
+export function resolveEffectiveBuffer(
+  serviceBuffer?: number | null,
+  businessTimeInterval?: number | null
+): number {
+  if (serviceBuffer !== undefined && serviceBuffer !== null && serviceBuffer >= 0) {
+    return serviceBuffer;
+  }
+  return Math.max(0, businessTimeInterval ?? 0);
+}
+
 export async function calculateAvailableSlots(query: SlotQuery): Promise<CalculatedSlot[]> {
   await connectToDatabase();
 
@@ -124,6 +247,12 @@ export async function calculateAvailableSlots(query: SlotQuery): Promise<Calcula
   ]);
 
   if (!business || !service) {
+    return [];
+  }
+
+  const maxAdvanceDays = Math.max(1, business.maxAdvanceBookingDays ?? 90);
+  const horizonCheck = checkBookingHorizon(normalizedDate, maxAdvanceDays);
+  if (!horizonCheck.valid) {
     return [];
   }
 
@@ -163,6 +292,8 @@ export async function calculateAvailableSlots(query: SlotQuery): Promise<Calcula
   const startMinutes = timeToMinutes(daySchedule.startTime || '09:00');
   const endMinutes = timeToMinutes(daySchedule.endTime || '18:00');
   const duration = Math.max(1, service.durationMinutes || 30);
+  const candidateBuffer = resolveEffectiveBuffer(service.bufferMinutes, business.timeInterval);
+  const minimumNoticeHours = Math.max(0, business.minimumNoticeHours ?? 1);
   const maxCapacity = Math.max(1, business.maximumSlot || 1);
 
   const breakIntervals = (daySchedule.breakHours || []).map((b) => ({
@@ -175,48 +306,57 @@ export async function calculateAvailableSlots(query: SlotQuery): Promise<Calcula
     date: { $in: [normalizedDate, date] },
     appointmentStatus: { $ne: 'Cancelled' },
   })
-    .select('time staffId durationMinutes')
+    .select('time staffId durationMinutes bufferMinutes')
     .lean();
 
   const bookedAppointmentsParsed = activeAppointments.map((app) => {
     const parsed = parseBookedTime(app.time, app.durationMinutes || duration);
+    const appBuffer = resolveEffectiveBuffer(app.bufferMinutes, business.timeInterval);
     return {
       staffId: String(app.staffId),
       startMin: parsed?.startMin ?? 0,
       endMin: parsed?.endMin ?? 0,
+      bufferMinutes: appBuffer,
     };
   });
 
-  const now = new Date();
-  const todayNormalized = `${now.getFullYear()}-${(now.getMonth() + 1).toString().padStart(2, '0')}-${now.getDate().toString().padStart(2, '0')}`;
-  const isToday = normalizedDate === todayNormalized;
-  const currentMinutes = now.getHours() * 60 + now.getMinutes();
-
   const slots: CalculatedSlot[] = [];
+  const slotStep = candidateBuffer > 0 ? duration + candidateBuffer : duration;
 
-  for (let slotStart = startMinutes; slotStart + duration <= endMinutes; slotStart += duration) {
+  for (let slotStart = startMinutes; slotStart + duration <= endMinutes; slotStart += slotStep) {
     const slotEnd = slotStart + duration;
 
+    // Notice period check
+    const noticeCheck = checkMinimumNotice(normalizedDate, slotStart, minimumNoticeHours);
+    if (!noticeCheck.valid) {
+      continue;
+    }
+
+    // Break hours check (including buffer time ensuring staff do not clean during lunch)
     const fallsInBreak = breakIntervals.some((b) =>
-      isIntervalOverlapping(slotStart, slotEnd, b.startMin, b.endMin)
+      isIntervalOverlapping(slotStart, slotEnd + candidateBuffer, b.startMin, b.endMin)
     );
     if (fallsInBreak) {
       continue;
     }
 
-    if (isToday && slotStart <= currentMinutes) {
-      continue;
-    }
-
+    // Filter staff members whose appointments or buffers do not collide
     const availableStaff = eligibleStaff.filter((staffMember) => {
       const staffMemberId = String(staffMember._id);
-      const overlappingBookingsCount = bookedAppointmentsParsed.filter(
-        (b) =>
-          b.staffId === staffMemberId &&
-          isIntervalOverlapping(slotStart, slotEnd, b.startMin, b.endMin)
-      ).length;
+      const collidingBookingsCount = bookedAppointmentsParsed.filter((b) => {
+        if (b.staffId !== staffMemberId) return false;
+        const check = isSlotCollidingWithBooking(
+          slotStart,
+          slotEnd,
+          candidateBuffer,
+          b.startMin,
+          b.endMin,
+          b.bufferMinutes
+        );
+        return check.collides;
+      }).length;
 
-      return overlappingBookingsCount < maxCapacity;
+      return collidingBookingsCount < maxCapacity;
     });
 
     if (availableStaff.length > 0) {
@@ -229,6 +369,7 @@ export async function calculateAvailableSlots(query: SlotQuery): Promise<Calcula
         formattedTime: `${startTimeStr} - ${endTimeStr}`,
         serviceId,
         durationMinutes: duration,
+        bufferMinutes: candidateBuffer,
         availableStaffIds: availableStaff.map((s) => String(s._id)),
       });
     }
@@ -242,7 +383,7 @@ export async function validateSlotAvailability(
 ): Promise<{ available: boolean; reason?: string }> {
   await connectToDatabase();
 
-  const { businessId, serviceId, staffId, date, time, durationMinutes } = params;
+  const { businessId, serviceId, staffId, date, time, durationMinutes, bufferMinutes } = params;
   const normalizedDate = normalizeDateString(date);
 
   const [business, staffMember, service] = await Promise.all([
@@ -261,6 +402,12 @@ export async function validateSlotAvailability(
 
   if (!staffMember) {
     return { available: false, reason: 'Staff member is not active or assigned to this business' };
+  }
+
+  const maxAdvanceDays = Math.max(1, business.maxAdvanceBookingDays ?? 90);
+  const horizonCheck = checkBookingHorizon(normalizedDate, maxAdvanceDays);
+  if (!horizonCheck.valid) {
+    return { available: false, reason: horizonCheck.reason };
   }
 
   const isHoliday = (business.holidays || []).some(
@@ -290,13 +437,24 @@ export async function validateSlotAvailability(
     return { available: false, reason: 'Slot falls outside of business working hours' };
   }
 
+  const minimumNoticeHours = Math.max(0, business.minimumNoticeHours ?? 1);
+  const noticeCheck = checkMinimumNotice(normalizedDate, slotStart, minimumNoticeHours);
+  if (!noticeCheck.valid) {
+    return { available: false, reason: noticeCheck.reason };
+  }
+
+  const candidateBuffer =
+    bufferMinutes !== undefined && bufferMinutes !== null && bufferMinutes >= 0
+      ? bufferMinutes
+      : resolveEffectiveBuffer(service.bufferMinutes, business.timeInterval);
+
   const breakIntervals = (daySchedule.breakHours || []).map((b) => ({
     startMin: timeToMinutes(b.start),
     endMin: timeToMinutes(b.end),
   }));
 
   const fallsInBreak = breakIntervals.some((b) =>
-    isIntervalOverlapping(slotStart, slotEnd, b.startMin, b.endMin)
+    isIntervalOverlapping(slotStart, slotEnd + candidateBuffer, b.startMin, b.endMin)
   );
   if (fallsInBreak) {
     return { available: false, reason: 'Slot conflicts with business break hours' };
@@ -309,19 +467,43 @@ export async function validateSlotAvailability(
     date: { $in: [normalizedDate, date] },
     appointmentStatus: { $ne: 'Cancelled' },
   })
-    .select('time durationMinutes')
+    .select('time durationMinutes bufferMinutes')
     .lean();
 
-  let overlapCount = 0;
+  let directCollisions = 0;
+  let bufferCollisions = 0;
+
   for (const app of conflictingAppointments) {
     const appParsed = parseBookedTime(app.time, app.durationMinutes || durationMinutes);
-    if (appParsed && isIntervalOverlapping(slotStart, slotEnd, appParsed.startMin, appParsed.endMin)) {
-      overlapCount++;
+    if (!appParsed) continue;
+
+    const appBuffer = resolveEffectiveBuffer(app.bufferMinutes, business.timeInterval);
+    const collisionCheck = isSlotCollidingWithBooking(
+      slotStart,
+      slotEnd,
+      candidateBuffer,
+      appParsed.startMin,
+      appParsed.endMin,
+      appBuffer
+    );
+
+    if (collisionCheck.collides) {
+      if (collisionCheck.isDirectCollision) {
+        directCollisions++;
+      } else {
+        bufferCollisions++;
+      }
     }
   }
 
-  if (overlapCount >= maxCapacity) {
-    return { available: false, reason: 'Slot is fully booked for this staff member' };
+  if (directCollisions + bufferCollisions >= maxCapacity) {
+    if (directCollisions > 0) {
+      return { available: false, reason: 'Slot is already booked for this staff member' };
+    }
+    return {
+      available: false,
+      reason: 'Slot conflicts with the cleaning buffer window of another appointment',
+    };
   }
 
   return { available: true };

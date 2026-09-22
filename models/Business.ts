@@ -42,6 +42,9 @@ export interface IBusiness {
   appointmentPrefix: string;
   maximumSlot: number;
   appointmentReminderHours: number;
+  timeInterval?: number;
+  minimumNoticeHours?: number;
+  maxAdvanceBookingDays?: number;
   domain?: string;
   businessHours: IBusinessHour[];
   holidays: IBusinessHoliday[];
@@ -124,6 +127,9 @@ const BusinessSchema = new Schema<IBusinessDocument>(
     appointmentPrefix: { type: String, default: '#APP000' },
     maximumSlot: { type: Number, default: 1 },
     appointmentReminderHours: { type: Number, default: 24 },
+    timeInterval: { type: Number, default: 0 },
+    minimumNoticeHours: { type: Number, default: 1 },
+    maxAdvanceBookingDays: { type: Number, default: 90 },
     domain: { type: String, trim: true },
     businessHours: {
       type: [BusinessHourSchema],
