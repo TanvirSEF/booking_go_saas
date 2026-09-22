@@ -6,6 +6,8 @@ import { SidebarProvider, SidebarInset } from "@/components/ui/sidebar";
 import { CompanySidebar } from "@/components/dashboard/company-sidebar";
 import { CompanyHeader } from "@/components/dashboard/company-header";
 
+import { ImpersonationBanner } from "@/components/dashboard/impersonation-banner";
+
 export default async function DashboardLayout({
   children,
 }: Readonly<{
@@ -34,6 +36,11 @@ export default async function DashboardLayout({
       <SidebarProvider data-theme="company">
         <CompanySidebar businessName={business?.name} />
         <SidebarInset>
+          <ImpersonationBanner
+            isImpersonating={Boolean(session.user.isImpersonating)}
+            originalAdminName={session.user.originalAdminName}
+            currentCompanyName={session.user.name || business?.name}
+          />
           <CompanyHeader
             user={session.user}
             businessName={business?.name}

@@ -2,6 +2,7 @@
 
 import { useState, useMemo, useEffect, useTransition, useCallback } from "react";
 import { useRouter, usePathname, useSearchParams } from "next/navigation";
+import { signIn } from "next-auth/react";
 import { toast } from "sonner";
 import {
   IconDownload,
@@ -10,7 +11,6 @@ import {
   IconSearch,
   IconX,
   IconUser,
-  IconApps,
   IconSwitchHorizontal,
   IconTrendingUp,
   IconAdjustmentsHorizontal,
@@ -22,6 +22,8 @@ import {
   IconShieldCheck,
   IconUserX,
   IconUserCheck,
+  IconKey,
+  IconLoader2,
 } from "@tabler/icons-react";
 import {
   Table,
@@ -41,6 +43,7 @@ import {
 } from "@/components/ui/tooltip";
 import { CompanyItem } from "./company-dialog";
 import { TablePaginationBar } from "@/components/shared/table-pagination-bar";
+import { startImpersonationAction } from "@/actions/impersonation";
 
 interface CompanyDataTableProps {
   companies: CompanyItem[];
@@ -75,6 +78,45 @@ export function CompanyDataTable({
   const [searchTerm, setSearchTerm] = useState(urlSearch);
   const [sortField, setSortField] = useState<"name" | "role" | null>(null);
   const [sortOrder, setSortOrder] = useState<"asc" | "desc">("asc");
+  const [impersonatingId, setImpersonatingId] = useState<string | null>(null);
+
+  async function handleImpersonate(company: CompanyItem) {
+    if (company.isActive === false) {
+      toast.error("Cannot impersonate a deactivated company.");
+      return;
+    }
+
+    try {
+      setImpersonatingId(company.id);
+      toast.info(`Initiating impersonation session for ${company.name}...`);
+
+      const res = await startImpersonationAction(company.id);
+      if (res.success && res.ticket) {
+        const authResult = await signIn("impersonate", {
+          ticket: res.ticket,
+          callbackUrl: res.redirectUrl || "/dashboard",
+          redirect: false,
+        });
+
+        if (authResult?.error) {
+          toast.error("Authentication failed during impersonation.");
+          setImpersonatingId(null);
+          return;
+        }
+
+        toast.success(`Logged in as ${company.name}`);
+        const targetUrl = res.redirectUrl || "/dashboard";
+        window.location.assign(targetUrl);
+      } else {
+        toast.error(res.message || res.error || "Failed to impersonate company.");
+        setImpersonatingId(null);
+      }
+    } catch (err) {
+      console.error("[handleImpersonate] Error:", err);
+      toast.error("Failed to start impersonation.");
+      setImpersonatingId(null);
+    }
+  }
 
   const updateFilters = useCallback(
     (updates: Record<string, string | null>) => {
@@ -399,20 +441,29 @@ export function CompanyDataTable({
                     <TableCell className="text-right">
                       {/* Action buttons */}
                       <div className="flex items-center justify-end gap-1">
-                        {/* 1. AdminHub: Purple */}
+                        {/* 1. Login as Company (Impersonation) */}
                         <Tooltip>
                           <TooltipTrigger asChild>
                             <Button
                               size="icon-xs"
-                              onClick={() => {
-                                router.push(`/dashboard?tenant=${c.id}`);
-                              }}
-                              className="size-7 rounded-md bg-primary text-primary-foreground hover:bg-primary/90 shadow-2xs cursor-pointer"
+                              onClick={() => handleImpersonate(c)}
+                              disabled={isSuspended || impersonatingId === c.id}
+                              className="size-7 rounded-md bg-primary text-primary-foreground hover:bg-primary/90 shadow-2xs cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
                             >
-                              <IconApps size={14} />
+                              {impersonatingId === c.id ? (
+                                <IconLoader2 size={14} className="animate-spin" />
+                              ) : (
+                                <IconKey size={14} />
+                              )}
                             </Button>
                           </TooltipTrigger>
-                          <TooltipContent>AdminHub</TooltipContent>
+                          <TooltipContent>
+                            {isSuspended
+                              ? "Cannot impersonate a deactivated company."
+                              : impersonatingId === c.id
+                              ? "Logging In..."
+                              : "Login As Company"}
+                          </TooltipContent>
                         </Tooltip>
 
                         {/* 2. Plan Switch: Dark Slate */}
