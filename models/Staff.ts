@@ -18,6 +18,7 @@ export interface IStaff {
   description?: string;
   colorCode: string;
   isActive: boolean;
+  calendarFeedToken?: string;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -86,11 +87,16 @@ const StaffSchema = new Schema<IStaffDocument>(
       type: Boolean,
       default: true,
     },
+    calendarFeedToken: {
+      type: String,
+    },
   },
   {
     timestamps: true,
   }
 );
+
+StaffSchema.index({ calendarFeedToken: 1 }, { unique: true, sparse: true });
 
 export const Staff: Model<IStaffDocument> =
   (mongoose.models.Staff as Model<IStaffDocument>) ||

@@ -61,6 +61,7 @@ export interface IBusiness {
   holidays: IBusinessHoliday[];
   settings: Record<string, string>;
   seo?: IBusinessSeo;
+  calendarFeedToken?: string;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -186,11 +187,16 @@ const BusinessSchema = new Schema<IBusinessDocument>(
       type: BusinessSeoSchema,
       default: () => ({}),
     },
+    calendarFeedToken: {
+      type: String,
+    },
   },
   {
     timestamps: true,
   }
 );
+
+BusinessSchema.index({ calendarFeedToken: 1 }, { unique: true, sparse: true });
 
 export const Business: Model<IBusinessDocument> =
   (mongoose.models.Business as Model<IBusinessDocument>) ||
