@@ -49,3 +49,10 @@ export interface CustomFieldActionResponse<T = unknown> {
   error?: string;
   data?: T;
 }
+
+export interface CustomFieldsValidationResult {
+  success: boolean;
+  error?: string;
+  fieldErrors?: Record<string, string>;
+  data?: Record<string, unknown>;
+}

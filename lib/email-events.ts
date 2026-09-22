@@ -8,6 +8,7 @@ import { Business, type IBusiness } from '@/models/Business';
 import { User } from '@/models/User';
 import { sendTemplatedEmail, ensureSystemTemplatesSeeded } from './email-engine';
 import { getGoogleCalendarUrl, getOutlookCalendarUrl } from './calendar-link';
+import { formatCustomFieldsForEmail } from './custom-fields';
 import type {
   AppointmentEmailEventType,
   EmailDispatchResult,
@@ -116,6 +117,7 @@ export async function dispatchAppointmentEmailEvent(
       appointment_status: appointment.appointmentStatus || 'Pending',
       payment_type: appointment.paymentType || 'Manual',
       payment_status: appointment.paymentStatus || 'unpaid',
+      custom_fields: formatCustomFieldsForEmail(appointment.customFields as Record<string, unknown>),
       google_calendar_url: googleCalUrl,
       outlook_calendar_url: outlookCalUrl,
       ...extraVariables,
@@ -125,6 +127,8 @@ export async function dispatchAppointmentEmailEvent(
     let templateSlug = 'appointment-status-change';
     if (eventType === 'appointment_created') {
       templateSlug = 'create-appointment';
+    } else if (eventType === 'appointment_reminder') {
+      templateSlug = 'appointment-reminder';
     }
 
     const companyIdStr = appointment.companyId ? String(appointment.companyId) : undefined;
@@ -136,7 +140,7 @@ export async function dispatchAppointmentEmailEvent(
     let staffError: string | undefined;
     let recipientCount = 0;
 
-    // 1. Send confirmation to Customer
+    // 1. Send confirmation/reminder to Customer
     if (appointment.email && appointment.email.includes('@')) {
       recipientCount++;
       const customerRes = await sendTemplatedEmail({
@@ -153,8 +157,9 @@ export async function dispatchAppointmentEmailEvent(
       }
     }
 
-    // 2. Send notification to Staff Specialist if distinct email available
+    // 2. Send notification to Staff Specialist if distinct email available (for creation and status changes)
     if (
+      eventType !== 'appointment_reminder' &&
       staffEmail &&
       staffEmail.includes('@') &&
       staffEmail.toLowerCase() !== appointment.email.toLowerCase()

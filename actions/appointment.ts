@@ -14,6 +14,7 @@ import { Counter } from '@/models/Counter';
 import { validateSlotAvailability, normalizeDateString } from '@/lib/booking-engine';
 import { hashPassword, verifyPassword } from '@/lib/password';
 import { dispatchAppointmentEmailEvent } from '@/lib/email-events';
+import { validateAndSanitizeCustomFields } from '@/lib/custom-fields';
 
 export interface CreateAppointmentInput {
   businessId: string;
@@ -177,6 +178,18 @@ export async function createAppointment(
       };
     }
 
+    const customFieldsCheck = await validateAndSanitizeCustomFields(
+      business._id,
+      customFields
+    );
+    if (!customFieldsCheck.success) {
+      return {
+        success: false,
+        error: customFieldsCheck.error || 'Custom fields validation failed.',
+      };
+    }
+    const sanitizedCustomFields = customFieldsCheck.data || {};
+
     let customerId: Types.ObjectId | undefined;
 
     if (customerType === 'new-user') {
@@ -287,7 +300,7 @@ export async function createAppointment(
       appointmentStatus: 'Pending',
       statusColor: '#21c9b0',
       attachment: attachment || '',
-      customFields: customFields || {},
+      customFields: sanitizedCustomFields,
     });
 
     await AppointmentPayment.create({
