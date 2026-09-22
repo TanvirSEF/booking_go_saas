@@ -26,6 +26,7 @@ export interface IHeroSetting {
 export interface IFeatureCard {
   id: string;
   logo: string;
+  image?: string;
   heading: string;
   description: string;
   link: string;
@@ -101,6 +102,7 @@ export interface IReviewItem {
   tag: string;
   heading: string;
   description: string;
+  image?: string;
   link: string;
   buttonText: string;
 }
@@ -231,6 +233,7 @@ export const HeroSchema = z.object({
 export const FeatureCardSchema = z.object({
   id: z.string().optional(),
   logo: z.string().default(''),
+  image: z.string().default(''),
   heading: z.string().min(1, 'Feature heading is required'),
   description: z.string().default(''),
   link: z.string().default('#'),
@@ -306,6 +309,7 @@ export const ReviewItemSchema = z.object({
   tag: z.string().default('FEATURED'),
   heading: z.string().min(1, 'Review heading is required'),
   description: z.string().min(1, 'Review description is required'),
+  image: z.string().default(''),
   link: z.string().default('#'),
   buttonText: z.string().default('View Live Demo'),
 });

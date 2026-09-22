@@ -50,6 +50,21 @@ export function LandingReviews({ data }: LandingReviewsProps) {
                 <p className="text-xs text-muted-foreground leading-relaxed italic">
                   {item.description}
                 </p>
+
+                {item.image && (
+                  <div className="flex items-center gap-3 pt-2">
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img
+                      src={item.image}
+                      alt={item.heading}
+                      className="size-9 rounded-full object-cover border border-border shrink-0"
+                    />
+                    <div className="text-xs min-w-0">
+                      <p className="font-semibold text-foreground truncate">Verified Client</p>
+                      <p className="text-[10px] text-muted-foreground truncate">BookingGo Customer</p>
+                    </div>
+                  </div>
+                )}
               </CardContent>
 
               {item.buttonText && (

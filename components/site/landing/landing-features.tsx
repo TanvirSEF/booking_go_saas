@@ -62,9 +62,20 @@ export function LandingFeatures({ data }: LandingFeaturesProps) {
               className="rounded-2xl border border-border/70 bg-card p-6 shadow-xs hover:shadow-md transition-all hover:border-primary/40 flex flex-col justify-between"
             >
               <CardContent className="p-0 space-y-4">
-                <div className="size-12 rounded-xl bg-primary/10 flex items-center justify-center">
-                  {renderFeatureIcon(card.logo)}
-                </div>
+                {card.image ? (
+                  <div className="w-full aspect-[16/9] rounded-xl overflow-hidden bg-muted border border-border/60">
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img
+                      src={card.image}
+                      alt={card.heading}
+                      className="w-full h-full object-cover transition-transform duration-300 hover:scale-105"
+                    />
+                  </div>
+                ) : (
+                  <div className="size-12 rounded-xl bg-primary/10 flex items-center justify-center">
+                    {renderFeatureIcon(card.logo)}
+                  </div>
+                )}
                 <h3 className="text-base font-bold text-foreground">{card.heading}</h3>
                 <p className="text-xs text-muted-foreground leading-relaxed">
                   {card.description}

@@ -88,6 +88,7 @@ export function FeaturesTab({ initialData }: FeaturesTabProps) {
   const [cardForm, setCardForm] = useState<IFeatureCard>({
     id: "",
     logo: "calendar",
+    image: "",
     heading: "",
     description: "",
     link: "#",
@@ -99,6 +100,7 @@ export function FeaturesTab({ initialData }: FeaturesTabProps) {
     setCardForm({
       id: "feat-" + Date.now(),
       logo: "calendar",
+      image: "",
       heading: "",
       description: "",
       link: "#",
@@ -382,6 +384,16 @@ export function FeaturesTab({ initialData }: FeaturesTabProps) {
                 value={cardForm.logo}
                 onChange={(e) => setCardForm((prev) => ({ ...prev, logo: e.target.value }))}
                 placeholder="calendar, users, chart, clock, shield"
+                className="text-xs h-9"
+              />
+            </div>
+
+            <div className="space-y-1.5">
+              <Label className="text-xs font-semibold">Card Feature Image URL (Optional)</Label>
+              <Input
+                value={cardForm.image || ""}
+                onChange={(e) => setCardForm((prev) => ({ ...prev, image: e.target.value }))}
+                placeholder="e.g. /images/landing/feature-image-1.png or https://..."
                 className="text-xs h-9"
               />
             </div>

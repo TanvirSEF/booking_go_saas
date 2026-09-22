@@ -45,6 +45,7 @@ export const DEFAULT_LANDING_PAGE_DATA: ILandingPageData = {
       {
         id: 'feat-1',
         logo: 'calendar',
+        image: '/images/landing/feature-image-1.png',
         heading: 'Streamlined Booking Management',
         description:
           'Simplify appointment scheduling, calendar sync, and real-time slot management to save valuable time and eliminate double bookings.',
@@ -54,6 +55,7 @@ export const DEFAULT_LANDING_PAGE_DATA: ILandingPageData = {
       {
         id: 'feat-2',
         logo: 'users',
+        image: '/images/landing/feature-image-2.png',
         heading: 'Enhanced Customer Experience',
         description:
           'Provide customers with a modern, mobile-first booking experience with automated confirmations, reminders, and custom fields.',
@@ -63,6 +65,7 @@ export const DEFAULT_LANDING_PAGE_DATA: ILandingPageData = {
       {
         id: 'feat-3',
         logo: 'chart',
+        image: '/images/landing/feature-image-3.png',
         heading: 'Comprehensive Business Insights',
         description:
           'Gain deep visibility into booking revenue, customer frequency, and staff utilization with real-time operational analytics.',
@@ -192,6 +195,7 @@ export const DEFAULT_LANDING_PAGE_DATA: ILandingPageData = {
         heading: 'Transformed our client booking efficiency overnight',
         description:
           'BookingGo gave our clinic a unified, professional appointment experience. Automated email reminders reduced client no-shows by 80% in the first month alone.',
+        image: 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=150&auto=format&fit=crop&q=80',
         link: '/login',
         buttonText: 'View Live Demo',
       },
@@ -201,6 +205,7 @@ export const DEFAULT_LANDING_PAGE_DATA: ILandingPageData = {
         heading: 'Effortless multi-location staff management',
         description:
           'Managing over 20 specialists across multiple branches used to require multiple spreadsheets. With BookingGo, each staff member manages their hours with pinpoint precision.',
+        image: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=150&auto=format&fit=crop&q=80',
         link: '/login',
         buttonText: 'View Live Demo',
       },
@@ -210,6 +215,7 @@ export const DEFAULT_LANDING_PAGE_DATA: ILandingPageData = {
         heading: 'The booking wizard converts visitors into paying clients',
         description:
           'The mobile booking wizard is blazingly fast. Our customers love how effortless it is to pick a service, select a specialist, and pay via Stripe within seconds.',
+        image: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150&auto=format&fit=crop&q=80',
         link: '/login',
         buttonText: 'View Live Demo',
       },
@@ -466,6 +472,7 @@ function cleanLandingPagePayload(rawDoc: any): ILandingPageData {
       cards: (rawDoc.features?.cards ?? DEFAULT_LANDING_PAGE_DATA.features.cards).map((c: any) => ({
         id: c.id || c._id?.toString() || '',
         logo: c.logo || '',
+        image: c.image || '',
         heading: c.heading || '',
         description: c.description || '',
         link: c.link || '#',
@@ -530,6 +537,7 @@ function cleanLandingPagePayload(rawDoc: any): ILandingPageData {
         tag: r.tag || 'FEATURED',
         heading: r.heading || '',
         description: r.description || '',
+        image: r.image || '',
         link: r.link || '/login',
         buttonText: r.buttonText || 'View Live Demo',
       })),

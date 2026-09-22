@@ -84,6 +84,7 @@ export function ReviewsTab({ initialData }: ReviewsTabProps) {
     tag: "SOLID FOUNDATION",
     heading: "",
     description: "",
+    image: "",
     link: "/login",
     buttonText: "View Live Demo",
   });
@@ -95,6 +96,7 @@ export function ReviewsTab({ initialData }: ReviewsTabProps) {
       tag: "SOLID FOUNDATION",
       heading: "",
       description: "",
+      image: "",
       link: "/login",
       buttonText: "View Live Demo",
     });
@@ -360,6 +362,16 @@ export function ReviewsTab({ initialData }: ReviewsTabProps) {
                 rows={4}
                 className="text-xs"
                 required
+              />
+            </div>
+
+            <div className="space-y-1.5">
+              <Label className="text-xs font-semibold">Client Avatar Image URL (Optional)</Label>
+              <Input
+                value={reviewForm.image || ""}
+                onChange={(e) => setReviewForm((prev) => ({ ...prev, image: e.target.value }))}
+                placeholder="e.g. https://images.unsplash.com/... or /images/..."
+                className="text-xs h-9"
               />
             </div>
 

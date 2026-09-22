@@ -98,6 +98,7 @@ const FeatureCardSchema = new Schema<IFeatureCard>(
   {
     id: { type: String, required: true },
     logo: { type: String, default: '', trim: true },
+    image: { type: String, default: '', trim: true },
     heading: { type: String, required: true, trim: true },
     description: { type: String, default: '', trim: true },
     link: { type: String, default: '#', trim: true },
@@ -240,6 +241,7 @@ const ReviewItemSchema = new Schema<IReviewItem>(
     tag: { type: String, default: 'SOLID FOUNDATION', trim: true },
     heading: { type: String, required: true, trim: true },
     description: { type: String, required: true, trim: true },
+    image: { type: String, default: '', trim: true },
     link: { type: String, default: '/login', trim: true },
     buttonText: { type: String, default: 'View Live Demo', trim: true },
   },
