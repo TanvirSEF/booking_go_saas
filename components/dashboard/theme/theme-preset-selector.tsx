@@ -2,7 +2,7 @@
 
 import { useState, useTransition } from 'react';
 import { toast } from 'sonner';
-import { IconCheck, IconLoader2, IconSparkles } from '@tabler/icons-react';
+import { IconCheck, IconLoader2 } from '@tabler/icons-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { switchActiveThemeAction } from '@/actions/theme-setting';
