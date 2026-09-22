@@ -1,6 +1,8 @@
 import { Metadata } from "next";
+import { IconSettings } from "@tabler/icons-react";
 import { getBusinessSettingsAction } from "@/actions/settings";
 import { SettingsHub } from "@/components/dashboard/settings/settings-hub";
+import { PageHeader } from "@/components/dashboard/page-header";
 import type { BusinessSettingsDTO } from "@/types/settings";
 
 export const dynamic = "force-dynamic";
@@ -39,17 +41,17 @@ export default async function SettingsPage() {
   const settings: BusinessSettingsDTO = res.data || defaultSettings;
 
   return (
-    <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-bold tracking-tight text-foreground">
-          Company Settings
-        </h1>
-        <p className="text-sm text-muted-foreground mt-1">
-          Manage your organization&apos;s business profile, branding visuals, scheduling policies, and tax compliance.
-        </p>
-      </div>
+    <div className="min-h-screen pb-16">
+      <PageHeader
+        title="Company Settings"
+        description="Manage your organization's business profile, branding visuals, scheduling policies, and tax compliance."
+        icon={<IconSettings size={22} />}
+        breadcrumbs={[{ label: "Company Settings" }]}
+      />
 
-      <SettingsHub initialSettings={settings} />
+      <main className="w-full mx-auto px-4 sm:px-6 pt-8">
+        <SettingsHub initialSettings={settings} />
+      </main>
     </div>
   );
 }
