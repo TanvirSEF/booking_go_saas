@@ -8,6 +8,7 @@ export interface IService {
   image?: string;
   price: number;
   durationMinutes: number;
+  bufferMinutes?: number;
   description?: string;
   isFree: boolean;
   onlineMeetingType?: 'none' | 'zoom' | 'google_meet';
@@ -56,6 +57,9 @@ const ServiceSchema = new Schema<IServiceDocument>(
       type: Number,
       required: true,
       default: 30,
+    },
+    bufferMinutes: {
+      type: Number,
     },
     description: {
       type: String,
