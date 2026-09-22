@@ -1,27 +1,26 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { connectToDatabase } from '@/lib/db';
-import { Appointment } from '@/models/Appointment';
-import '@/models/Business';
-import '@/models/Service';
-import '@/models/Staff';
-import '@/models/Location';
-import { sendAppointmentReminderEmail } from '@/lib/mailer';
+import { processAppointmentReminders } from '@/lib/cron-reminder';
 
 export const dynamic = 'force-dynamic';
 
 /**
  * Automated cron trigger to dispatch appointment reminders to customers.
- * Designed for Vercel Cron or external scheduler triggers.
+ * Designed for Vercel Cron, external scheduler triggers, or administrative maintenance jobs.
  *
  * GET /api/cron/reminders
  * Header: Authorization: Bearer <CRON_SECRET>
+ * Optional Query Params:
+ *  - dryRun=true: calculate eligible reminders without dispatching emails or modifying records
+ *  - lookaheadHours=24: override default lookahead window (in hours)
+ *  - businessId=...: scope processing to a specific tenant business
+ *  - limit=50: maximum number of reminders to dispatch in this execution batch
  */
 export async function GET(req: NextRequest) {
   try {
     const cronSecret = process.env.CRON_SECRET;
     const authHeader = req.headers.get('authorization');
 
-    // If CRON_SECRET is configured in environment, verify authorization
+    // If CRON_SECRET is configured in environment, enforce strict bearer authorization
     if (cronSecret && authHeader !== `Bearer ${cronSecret}`) {
       return NextResponse.json(
         { success: false, error: 'Unauthorized: Invalid cron authorization token.' },
@@ -29,86 +28,26 @@ export async function GET(req: NextRequest) {
       );
     }
 
-    await connectToDatabase();
+    const { searchParams } = new URL(req.url);
+    const dryRun = searchParams.get('dryRun') === 'true';
+    const lookaheadParam = searchParams.get('lookaheadHours');
+    const businessIdParam = searchParams.get('businessId') || undefined;
+    const limitParam = searchParams.get('limit');
 
-    const now = new Date();
-    // Compute date boundary: today and tomorrow
-    const todayStr = now.toISOString().split('T')[0];
-    const tomorrow = new Date(now.getTime() + 24 * 60 * 60 * 1000);
-    const tomorrowStr = tomorrow.toISOString().split('T')[0];
+    const lookaheadHours = lookaheadParam ? parseInt(lookaheadParam, 10) : undefined;
+    const limit = limitParam ? parseInt(limitParam, 10) : undefined;
 
-    // Search for confirmed or pending upcoming appointments where reminder has not yet been sent
-    const pendingAppointments = await Appointment.find({
-      isReminderSent: { $ne: true },
-      appointmentStatus: { $in: ['Confirmed', 'Pending', 'confirmed', 'pending'] },
-      date: { $in: [todayStr, tomorrowStr] },
-    })
-      .populate('serviceId', 'name')
-      .populate('staffId', 'name')
-      .populate('locationId', 'name address')
-      .populate('businessId', 'name slug appointmentReminderHours')
-      .limit(50);
-
-    let sentCount = 0;
-    const results: Array<{ appointmentNumber: string; success: boolean }> = [];
-
-    for (const app of pendingAppointments) {
-      const business = app.businessId as unknown as {
-        name?: string;
-        slug?: string;
-        appointmentReminderHours?: number;
-      } | null;
-
-      if (!business?.name || !app.email) {
-        continue;
-      }
-
-      const serviceObj = app.serviceId as { name?: string } | null;
-      const staffObj = app.staffId as { name?: string } | null;
-      const locationObj = app.locationId as { name?: string; address?: string } | null;
-
-      try {
-        const mailResult = await sendAppointmentReminderEmail({
-          customerName: app.name,
-          customerEmail: app.email,
-          appointmentNumber: app.appointmentNumber,
-          serviceName: serviceObj?.name || 'Service',
-          staffName: staffObj?.name || 'Staff Specialist',
-          locationName: locationObj?.name || 'Location',
-          locationAddress: locationObj?.address || '',
-          date: app.date,
-          time: app.time,
-          durationMinutes: app.durationMinutes || 30,
-          businessName: business.name,
-          businessSlug: business.slug || '',
-        });
-
-        if (mailResult.success) {
-          app.isReminderSent = true;
-          app.reminderSentAt = new Date();
-          await app.save();
-
-          sentCount++;
-          results.push({ appointmentNumber: app.appointmentNumber, success: true });
-        } else {
-          results.push({ appointmentNumber: app.appointmentNumber, success: false });
-        }
-      } catch (sendErr) {
-        console.error(`[Cron Reminder] Failed for ${app.appointmentNumber}:`, sendErr);
-        results.push({ appointmentNumber: app.appointmentNumber, success: false });
-      }
-    }
-
-    return NextResponse.json({
-      success: true,
-      timestamp: now.toISOString(),
-      matched: pendingAppointments.length,
-      dispatched: sentCount,
-      results,
+    const result = await processAppointmentReminders({
+      dryRun,
+      lookaheadHours: !isNaN(Number(lookaheadHours)) ? lookaheadHours : undefined,
+      businessId: businessIdParam,
+      limit: !isNaN(Number(limit)) ? limit : undefined,
     });
+
+    return NextResponse.json(result, { status: 200 });
   } catch (error) {
     const message = error instanceof Error ? error.message : 'Cron reminder dispatch failed.';
-    console.error('[Cron Reminder Error]', error);
+    console.error('[Cron Reminder Route Error]', error);
     return NextResponse.json({ success: false, error: message }, { status: 500 });
   }
 }
