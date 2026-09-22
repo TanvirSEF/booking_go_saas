@@ -32,6 +32,10 @@ export async function generateMetadata({
       ? `Track Appointment - ${business.name} | BookingGo`
       : 'Track Appointment | BookingGo',
     description: 'Lookup and track your live appointment status, time window, specialist, and payment details.',
+    robots: {
+      index: false,
+      follow: false,
+    },
   };
 }
 

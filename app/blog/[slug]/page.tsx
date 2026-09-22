@@ -13,6 +13,8 @@ import {
 import { getPublicBlogPostBySlugAction } from "@/actions/blog";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { resolveBlogSeoMetadata, generateBlogPostingJsonLd } from "@/lib/seo";
+import type { IBlog } from "@/models/Blog";
 
 export const dynamic = "force-dynamic";
 
@@ -33,27 +35,7 @@ export async function generateMetadata({
   const resolvedSearchParams = searchParams ? await searchParams : {};
   const businessSlug = resolvedSearchParams.business || "";
 
-  const res = await getPublicBlogPostBySlugAction(businessSlug, resolvedParams.slug);
-
-  if (!res.success || !res.data) {
-    return {
-      title: "Article Not Found | Blog",
-      description: "The requested blog article could not be found.",
-    };
-  }
-
-  const post = res.data;
-  return {
-    title: `${post.title} | Blog`,
-    description: post.summary || post.title,
-    openGraph: {
-      title: post.title,
-      description: post.summary || post.title,
-      images: post.image ? [post.image] : [],
-      type: "article",
-      publishedTime: post.publishedAt,
-    },
-  };
+  return resolveBlogSeoMetadata(businessSlug, resolvedParams.slug);
 }
 
 function estimateReadingTime(text: string): string {
@@ -77,9 +59,14 @@ export default async function PublicBlogSlugPage({
   }
 
   const post = res.data;
+  const jsonLd = generateBlogPostingJsonLd(post as unknown as IBlog, null);
 
   return (
     <article className="min-h-screen bg-background text-foreground flex flex-col">
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
+      />
       {/* Top Navigation Bar */}
       <nav className="border-b border-border/50 bg-muted/20 py-3.5 px-4 sticky top-0 z-20 backdrop-blur-md">
         <div className="max-w-4xl mx-auto flex items-center justify-between">

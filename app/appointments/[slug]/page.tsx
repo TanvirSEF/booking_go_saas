@@ -8,6 +8,8 @@ import {
   Service,
   Staff,
   CustomField,
+  type IBusiness,
+  type IService,
 } from '@/models';
 import { BookingWizard } from '@/components/wizard/booking-wizard';
 import { verifyAppointmentStripePaymentAction } from '@/actions/appointment-payment';
@@ -22,6 +24,8 @@ import type {
 } from '@/types/wizard';
 import type { ConfirmedBookingDetails } from '@/components/wizard/booking-confirmation-dialog';
 
+import { resolveBusinessSeoMetadata, generateLocalBusinessJsonLd } from '@/lib/seo';
+
 interface PageProps {
   params: Promise<{ slug: string }>;
   searchParams: Promise<{
@@ -35,19 +39,7 @@ interface PageProps {
 
 export async function generateMetadata({ params }: PageProps): Promise<Metadata> {
   const { slug } = await params;
-  await connectToDatabase();
-  const business = await Business.findOne({ slug }).lean();
-
-  if (!business) {
-    return {
-      title: 'Appointment Booking',
-    };
-  }
-
-  return {
-    title: `Book Appointment | ${business.name}`,
-    description: `Book your service online with ${business.name}. Fast, easy, and secure scheduling.`,
-  };
+  return resolveBusinessSeoMetadata(slug);
 }
 
 export default async function AppointmentBookingPage({
@@ -177,8 +169,17 @@ export default async function AppointmentBookingPage({
     customFields: clientCustomFields,
   };
 
+  const jsonLd = generateLocalBusinessJsonLd(
+    businessDoc as unknown as IBusiness,
+    servicesDocs as unknown as IService[]
+  );
+
   return (
     <div className="min-h-screen bg-slate-50/50 dark:bg-zinc-950">
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
+      />
       <BookingWizard
         business={clientBusiness}
         catalog={catalog}

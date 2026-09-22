@@ -28,6 +28,17 @@ export interface IBusinessHoliday {
   description?: string;
 }
 
+export interface IBusinessSeo {
+  metaTitle?: string;
+  metaDescription?: string;
+  metaKeywords?: string;
+  metaImage?: string;
+  canonicalUrl?: string;
+  ogType?: string;
+  twitterCard?: 'summary' | 'summary_large_image';
+  noIndex?: boolean;
+}
+
 export interface IBusiness {
   companyId: Types.ObjectId;
   name: string;
@@ -49,6 +60,7 @@ export interface IBusiness {
   businessHours: IBusinessHour[];
   holidays: IBusinessHoliday[];
   settings: Record<string, string>;
+  seo?: IBusinessSeo;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -82,6 +94,24 @@ const BusinessHolidaySchema = new Schema<IBusinessHoliday>(
   {
     date: { type: String, required: true },
     description: { type: String, default: '' },
+  },
+  { _id: false }
+);
+
+const BusinessSeoSchema = new Schema<IBusinessSeo>(
+  {
+    metaTitle: { type: String, trim: true, default: '' },
+    metaDescription: { type: String, trim: true, default: '' },
+    metaKeywords: { type: String, trim: true, default: '' },
+    metaImage: { type: String, trim: true, default: '' },
+    canonicalUrl: { type: String, trim: true, default: '' },
+    ogType: { type: String, trim: true, default: 'website' },
+    twitterCard: {
+      type: String,
+      enum: ['summary', 'summary_large_image'],
+      default: 'summary_large_image',
+    },
+    noIndex: { type: Boolean, default: false },
   },
   { _id: false }
 );
@@ -151,6 +181,10 @@ const BusinessSchema = new Schema<IBusinessDocument>(
       type: Map,
       of: String,
       default: {},
+    },
+    seo: {
+      type: BusinessSeoSchema,
+      default: () => ({}),
     },
   },
   {
