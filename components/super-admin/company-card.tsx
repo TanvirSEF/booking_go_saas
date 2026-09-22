@@ -1,13 +1,13 @@
 "use client";
 
+import { useState } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { signIn } from "next-auth/react";
 import { toast } from "sonner";
 import {
   IconDotsVertical,
   IconPencil,
   IconTrash,
-  IconSwitchHorizontal,
   IconTrendingUp,
   IconAdjustmentsHorizontal,
   IconUser,
@@ -15,6 +15,8 @@ import {
   IconShieldCheck,
   IconUserX,
   IconUserCheck,
+  IconLoader2,
+  IconKey,
 } from "@tabler/icons-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -31,6 +33,7 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 import { CompanyItem } from "./company-dialog";
+import { startImpersonationAction } from "@/actions/impersonation";
 
 interface CompanyCardProps {
   company: CompanyItem;
@@ -53,11 +56,44 @@ export function CompanyCard({
   onReactivate,
   onViewSecurity,
 }: CompanyCardProps) {
-  const router = useRouter();
+  const [isImpersonating, setIsImpersonating] = useState(false);
 
-  function handleImpersonate() {
-    toast.info(`Switching session to tenant ${company.name}...`);
-    router.push(`/dashboard?tenant=${company.id}`);
+  async function handleImpersonate() {
+    if (company.isActive === false) {
+      toast.error("Cannot impersonate a deactivated company.");
+      return;
+    }
+
+    try {
+      setIsImpersonating(true);
+      toast.info(`Initiating impersonation session for ${company.name}...`);
+
+      const res = await startImpersonationAction(company.id);
+      if (res.success && res.ticket) {
+        const authResult = await signIn("impersonate", {
+          ticket: res.ticket,
+          callbackUrl: res.redirectUrl || "/dashboard",
+          redirect: false,
+        });
+
+        if (authResult?.error) {
+          toast.error("Authentication failed during impersonation.");
+          setIsImpersonating(false);
+          return;
+        }
+
+        toast.success(`Logged in as ${company.name}`);
+        const targetUrl = res.redirectUrl || "/dashboard";
+        window.location.assign(targetUrl);
+      } else {
+        toast.error(res.message || res.error || "Failed to impersonate company.");
+        setIsImpersonating(false);
+      }
+    } catch (err) {
+      console.error("[handleImpersonate] Error:", err);
+      toast.error("Failed to start impersonation.");
+      setIsImpersonating(false);
+    }
   }
 
   function handleBusinessLink() {
@@ -143,13 +179,37 @@ export function CompanyCard({
               <span>Edit Company</span>
             </DropdownMenuItem>
 
-            <DropdownMenuItem
-              onClick={handleImpersonate}
-              className="cursor-pointer gap-2.5 rounded-lg py-1.5 text-xs font-medium"
-            >
-              <IconSwitchHorizontal size={15} />
-              <span>Login As Company</span>
-            </DropdownMenuItem>
+            {isSuspended ? (
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <div>
+                    <DropdownMenuItem
+                      disabled
+                      className="gap-2.5 rounded-lg py-1.5 text-xs font-medium opacity-50 cursor-not-allowed"
+                    >
+                      <IconKey size={15} className="text-primary" />
+                      <span>Login As Company</span>
+                    </DropdownMenuItem>
+                  </div>
+                </TooltipTrigger>
+                <TooltipContent side="left">
+                  <span>Cannot impersonate a deactivated company.</span>
+                </TooltipContent>
+              </Tooltip>
+            ) : (
+              <DropdownMenuItem
+                onClick={handleImpersonate}
+                disabled={isImpersonating}
+                className="cursor-pointer gap-2.5 rounded-lg py-1.5 text-xs font-medium disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                {isImpersonating ? (
+                  <IconLoader2 size={15} className="animate-spin text-primary" />
+                ) : (
+                  <IconKey size={15} className="text-primary" />
+                )}
+                <span>{isImpersonating ? "Logging In..." : "Login As Company"}</span>
+              </DropdownMenuItem>
+            )}
 
             <DropdownMenuItem
               onClick={handleBusinessLink}
