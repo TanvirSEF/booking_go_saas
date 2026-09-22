@@ -1,44 +1,52 @@
-import { NextResponse } from "next/server";
-import type Stripe from "stripe";
-import { stripe } from "@/lib/stripe";
-import { connectToDatabase } from "@/lib/db";
-import { User } from "@/models/User";
-import { Order } from "@/models/Order";
-import { Coupon } from "@/models/Coupon";
-import { UserCoupon } from "@/models/UserCoupon";
-import { Appointment } from "@/models/Appointment";
-import { AppointmentPayment } from "@/models/AppointmentPayment";
-import { Business } from "@/models/Business";
-import { Service } from "@/models/Service";
-import { sendPaymentReceiptEmail } from "@/lib/mailer";
+import { NextResponse } from 'next/server';
+import type Stripe from 'stripe';
+import { stripe } from '@/lib/stripe';
+import { connectToDatabase } from '@/lib/db';
+import { Appointment } from '@/models/Appointment';
+import { AppointmentPayment } from '@/models/AppointmentPayment';
+import { Business } from '@/models/Business';
+import { Service } from '@/models/Service';
+import { Coupon } from '@/models/Coupon';
+import { sendPaymentReceiptEmail } from '@/lib/mailer';
+import {
+  acquireWebhookLock,
+  markWebhookSuccess,
+  markWebhookFailed,
+} from '@/lib/payment-idempotency';
+import {
+  processSubscriptionCheckout,
+  processRecurringRenewalInvoice,
+  processSubscriptionCancelled,
+  processPaymentFailed,
+} from '@/lib/subscription-renewal-engine';
 
-export const dynamic = "force-dynamic";
+export const dynamic = 'force-dynamic';
 
 export async function POST(req: Request) {
   const body = await req.text();
-  const signature = req.headers.get("stripe-signature");
+  const signature = req.headers.get('stripe-signature');
 
   let webhookSecret = process.env.STRIPE_WEBHOOK_SECRET?.trim();
   if (!webhookSecret) {
     try {
-      const { getSystemSetting } = await import("@/lib/system-settings");
-      webhookSecret = (await getSystemSetting("stripe_webhook_secret"))?.trim();
+      const { getSystemSetting } = await import('@/lib/system-settings');
+      webhookSecret = (await getSystemSetting('stripe_webhook_secret'))?.trim();
     } catch {
       // Graceful fallback
     }
   }
 
   if (!webhookSecret) {
-    console.error("Missing STRIPE_WEBHOOK_SECRET in environment or database settings");
+    console.error('Missing STRIPE_WEBHOOK_SECRET in environment or database settings');
     return NextResponse.json(
-      { error: "Webhook secret not configured" },
+      { error: 'Webhook secret not configured' },
       { status: 500 }
     );
   }
 
   if (!signature) {
     return NextResponse.json(
-      { error: "Missing stripe-signature header" },
+      { error: 'Missing stripe-signature header' },
       { status: 400 }
     );
   }
@@ -48,16 +56,25 @@ export async function POST(req: Request) {
   try {
     event = stripe.webhooks.constructEvent(body, signature, webhookSecret);
   } catch (err: unknown) {
-    const message = err instanceof Error ? err.message : "Webhook signature verification failed";
+    const message = err instanceof Error ? err.message : 'Webhook signature verification failed';
     console.error(`⚠️ Stripe webhook signature error: ${message}`);
     return NextResponse.json({ error: message }, { status: 400 });
+  }
+
+  // Idempotency check: acquire atomic lock for this event ID
+  const lock = await acquireWebhookLock(event.id, 'stripe', event.type);
+  if (!lock.shouldProcess) {
+    return NextResponse.json(
+      { received: true, alreadyProcessed: true, reason: lock.reason },
+      { status: 200 }
+    );
   }
 
   try {
     await connectToDatabase();
 
     switch (event.type) {
-      case "checkout.session.completed": {
+      case 'checkout.session.completed': {
         const session = event.data.object as Stripe.Checkout.Session;
         const metadata = session.metadata || {};
 
@@ -65,14 +82,14 @@ export async function POST(req: Request) {
           userId,
           planId,
           planName,
-          billingType = "monthly",
-          discountAmount = "0",
+          billingType = 'monthly',
+          discountAmount = '0',
           couponCode,
           couponId,
         } = metadata;
 
         // 1. Handle Appointment Booking Payments
-        if (metadata.type === "appointment" || metadata.appointmentId) {
+        if (metadata.type === 'appointment' || metadata.appointmentId) {
           const appointmentId = metadata.appointmentId;
           const appointment = await Appointment.findById(appointmentId);
 
@@ -81,10 +98,10 @@ export async function POST(req: Request) {
               ? session.amount_total / 100
               : appointment.price;
 
-            if (appointment.paymentStatus !== "paid") {
-              appointment.paymentStatus = "paid";
-              appointment.appointmentStatus = "Confirmed";
-              appointment.paymentType = "Stripe";
+            if (appointment.paymentStatus !== 'paid') {
+              appointment.paymentStatus = 'paid';
+              appointment.appointmentStatus = 'Confirmed';
+              appointment.paymentType = 'Stripe';
 
               const timestamp = new Date().toLocaleString();
               const log = `[${timestamp}] Stripe payment confirmed via Webhook (Txn: ${session.payment_intent || session.id})`;
@@ -100,36 +117,36 @@ export async function POST(req: Request) {
                 appointmentId: appointment._id,
                 companyId: appointment.companyId,
                 businessId: appointment.businessId,
-                paymentType: "Stripe",
+                paymentType: 'Stripe',
                 amount: appointment.price,
                 discountAmount: Number(metadata.discountAmount || 0),
                 finalAmount: paidAmount,
                 paymentDate: new Date(),
                 txnId,
-                receiptUrl: session.customer_details?.email || "",
-                status: "completed",
+                receiptUrl: session.customer_details?.email || '',
+                status: 'completed',
               });
 
               // Asynchronously dispatch payment receipt email
               void (async () => {
                 try {
                   const [biz, svc] = await Promise.all([
-                    Business.findById(appointment.businessId).select("name").lean(),
-                    Service.findById(appointment.serviceId).select("name").lean(),
+                    Business.findById(appointment.businessId).select('name').lean(),
+                    Service.findById(appointment.serviceId).select('name').lean(),
                   ]);
                   await sendPaymentReceiptEmail({
                     customerName: appointment.name,
                     customerEmail: appointment.email,
                     appointmentNumber: appointment.appointmentNumber,
-                    serviceName: svc?.name || "Appointment Service",
+                    serviceName: svc?.name || 'Appointment Service',
                     amount: appointment.price,
                     discountAmount: Number(metadata.discountAmount || 0),
                     finalAmount: paidAmount,
-                    paymentType: "Stripe",
-                    businessName: biz?.name || "BookingGo",
+                    paymentType: 'Stripe',
+                    businessName: biz?.name || 'BookingGo',
                   });
                 } catch (e) {
-                  console.error("[Mailer] Stripe receipt email error:", e);
+                  console.error('[Mailer] Stripe receipt email error:', e);
                 }
               })();
 
@@ -143,124 +160,81 @@ export async function POST(req: Request) {
           break;
         }
 
-        // 2. Handle SaaS Plan Subscription Payments
+        // 2. Handle SaaS Plan Subscription Payments via Shared Renewal Engine
         if (userId && planId) {
-          const isYearly = billingType === "yearly";
-          const expireDate = new Date();
-          if (isYearly) {
-            expireDate.setFullYear(expireDate.getFullYear() + 1);
-          } else {
-            expireDate.setDate(expireDate.getDate() + 30);
-          }
-
-          // 1. Update User active subscription
-          await User.findByIdAndUpdate(userId, {
-            activePlanId: planId,
-            billingType: isYearly ? "yearly" : "monthly",
-            planExpireDate: expireDate,
-            isTrialDone: true,
-          });
-
-          // 2. Create Order record
-          const orderNumber = `ORD-${Date.now()}-${Math.floor(1000 + Math.random() * 9000)}`;
           const paidAmount = session.amount_total
             ? session.amount_total / 100
             : 0;
 
-          const order = await Order.create({
-            orderNumber,
-            companyId: userId,
+          await processSubscriptionCheckout({
+            userId,
             planId,
-            planName: planName || "SaaS Subscription",
-            billingCycle: isYearly ? "yearly" : "monthly",
+            planName: planName || 'SaaS Subscription',
+            billingType: billingType === 'yearly' ? 'yearly' : 'monthly',
             price: paidAmount,
             discountAmount: Number(discountAmount) || 0,
-            currency: (session.currency || "USD").toUpperCase(),
-            paymentType: "Stripe",
-            paymentStatus: "succeeded",
+            currency: (session.currency || 'USD').toUpperCase(),
+            paymentType: 'Stripe',
             txnId: session.id,
             couponCode: couponCode || undefined,
+            couponId: couponId || undefined,
           });
-
-          // 3. Track coupon usage if redeemed
-          if (couponId) {
-            await Coupon.findByIdAndUpdate(couponId, {
-              $inc: { usedCount: 1 },
-            });
-            await UserCoupon.create({
-              userId,
-              couponId,
-              orderId: order._id,
-              usedAt: new Date(),
-            });
-          }
         }
         break;
       }
 
-      case "invoice.payment_succeeded": {
+      case 'invoice.payment_succeeded': {
         const invoice = event.data.object as Stripe.Invoice;
 
-        // Recurring invoice renewal
         if (invoice.customer_email) {
-          const user = await User.findOne({
-            email: invoice.customer_email.toLowerCase().trim(),
+          const paidAmount = invoice.amount_paid
+            ? invoice.amount_paid / 100
+            : 0;
+
+          await processRecurringRenewalInvoice({
+            customerEmail: invoice.customer_email,
+            amountPaid: paidAmount,
+            currency: (invoice.currency || 'USD').toUpperCase(),
+            invoiceId: invoice.id,
+            hostedInvoiceUrl: invoice.hosted_invoice_url || undefined,
+            paymentType: 'Stripe',
           });
-
-          if (user && user.activePlanId) {
-            const isYearly = user.billingType === "yearly";
-            const baseDate = user.planExpireDate && user.planExpireDate > new Date()
-              ? new Date(user.planExpireDate)
-              : new Date();
-
-            if (isYearly) {
-              baseDate.setFullYear(baseDate.getFullYear() + 1);
-            } else {
-              baseDate.setDate(baseDate.getDate() + 30);
-            }
-
-            user.planExpireDate = baseDate;
-            await user.save();
-
-            const orderNumber = `ORD-REC-${Date.now()}-${Math.floor(1000 + Math.random() * 9000)}`;
-            const paidAmount = invoice.amount_paid
-              ? invoice.amount_paid / 100
-              : 0;
-
-            await Order.create({
-              orderNumber,
-              companyId: user._id,
-              planId: user.activePlanId,
-              planName: "SaaS Renewal",
-              billingCycle: user.billingType || "monthly",
-              price: paidAmount,
-              discountAmount: 0,
-              currency: (invoice.currency || "USD").toUpperCase(),
-              paymentType: "Stripe",
-              paymentStatus: "succeeded",
-              txnId: invoice.id,
-              receiptUrl: invoice.hosted_invoice_url || undefined,
-            });
-          }
         }
         break;
       }
 
-      case "customer.subscription.deleted": {
+      case 'customer.subscription.deleted': {
         const subscription = event.data.object as Stripe.Subscription;
-        console.log(`ℹ️ Stripe subscription deleted: ${subscription.id}`);
+        await processSubscriptionCancelled({
+          subscriptionId: subscription.id,
+          reason: 'Stripe customer subscription deleted',
+        });
         break;
       }
 
-      default: {
-        // Unhandled event types acknowledged with 200
+      case 'invoice.payment_failed': {
+        const invoice = event.data.object as Stripe.Invoice;
+        const amount = invoice.amount_due ? invoice.amount_due / 100 : 0;
+        await processPaymentFailed({
+          customerEmail: invoice.customer_email || undefined,
+          amount,
+          currency: (invoice.currency || 'USD').toUpperCase(),
+          txnId: invoice.id,
+          paymentType: 'Stripe',
+          reason: 'Invoice payment failed',
+        });
         break;
       }
+
+      default:
+        break;
     }
 
+    await markWebhookSuccess(event.id, 'stripe');
     return NextResponse.json({ received: true }, { status: 200 });
   } catch (err: unknown) {
-    const message = err instanceof Error ? err.message : "Webhook handler failed";
+    const message = err instanceof Error ? err.message : 'Webhook fulfillment error';
+    await markWebhookFailed(event.id, 'stripe', message);
     console.error(`❌ Webhook fulfillment error: ${message}`);
     return NextResponse.json({ error: message }, { status: 500 });
   }

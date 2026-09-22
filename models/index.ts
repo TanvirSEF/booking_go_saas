@@ -28,3 +28,4 @@ export * from './Translation';
 export * from './SystemSetting';
 export * from './Role';
 export * from './LandingPageSetting';
+export * from './WebhookEvent';
