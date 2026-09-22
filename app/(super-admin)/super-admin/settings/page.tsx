@@ -1,82 +1,54 @@
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
-import { IconSettings, IconShieldCheck } from "@tabler/icons-react";
+import { Metadata } from "next";
+import { IconSettings } from "@tabler/icons-react";
+import { requireRole } from "@/lib/guards";
+import { ACCESS } from "@/lib/roles";
+import { getAllSystemSettingsAction } from "@/actions/system-settings";
+import { PageHeader } from "@/components/dashboard/page-header";
+import { SuperAdminSettingsHub } from "@/components/super-admin/settings/settings-hub";
+import type { AdminSystemSettingsDTO } from "@/types/system-setting";
 
-export const metadata = {
-  title: "Global Settings | Super Admin",
+export const dynamic = "force-dynamic";
+
+export const metadata: Metadata = {
+  title: "Global System Settings | Super Admin",
+  description:
+    "System-wide brand configuration, payment gateway keys, SMTP email, and platform defaults.",
 };
 
-export default function SettingsPage() {
+const defaultSettings: AdminSystemSettingsDTO = {
+  brand: {},
+  system: {},
+  stripe: {},
+  paypal: {},
+  bank_transfer: {},
+  email: {},
+  storage: {},
+  recaptcha: {},
+  auth: {},
+};
+
+export default async function SettingsPage() {
+  await requireRole(ACCESS.superAdmin, "/super-admin/settings");
+
+  const res = await getAllSystemSettingsAction();
+  const settings: AdminSystemSettingsDTO = res.data || defaultSettings;
+
   return (
-    <div className="flex flex-col gap-6">
-      <div>
-        <h1 className="text-2xl font-bold tracking-tight text-foreground">
-          Global Settings
-        </h1>
-        <p className="text-sm text-muted-foreground">
-          System-wide brand configuration, payment gateway keys, and platform defaults.
-        </p>
-      </div>
+    <div className="min-h-screen pb-16">
+      <PageHeader
+        title="Global System Settings"
+        description="Configure platform brand assets, currencies, payment gateways, SMTP mailer, cloud storage, and security."
+        icon={<IconSettings size={22} />}
+        breadcrumbs={[
+          { label: "Dashboard", href: "/super-admin" },
+          { label: "Settings" },
+        ]}
+      />
 
-      <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
-        <Card className="rounded-2xl border-border bg-card p-6 shadow-xs">
-          <CardHeader className="p-0 pb-4">
-            <div className="flex items-center gap-2 text-primary font-semibold">
-              <IconSettings size={18} />
-              <span>Platform Configuration</span>
-            </div>
-            <CardTitle className="mt-1 text-base font-bold text-foreground">
-              General System Settings
-            </CardTitle>
-            <CardDescription className="text-xs text-muted-foreground">
-              Configure brand logo, title, and currency defaults.
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-3 p-0 pt-2 text-xs">
-            <div className="flex justify-between border-b border-border/50 py-2">
-              <span className="text-muted-foreground">Platform Name</span>
-              <span className="font-semibold text-foreground">BookingGo</span>
-            </div>
-            <div className="flex justify-between border-b border-border/50 py-2">
-              <span className="text-muted-foreground">Default Currency</span>
-              <span className="font-semibold text-foreground">USD ($)</span>
-            </div>
-            <div className="flex justify-between border-b border-border/50 py-2">
-              <span className="text-muted-foreground">Primary Accent</span>
-              <Badge variant="secondary" className="text-[10px]">Purple Nova</Badge>
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card className="rounded-2xl border-border bg-card p-6 shadow-xs">
-          <CardHeader className="p-0 pb-4">
-            <div className="flex items-center gap-2 text-emerald-600 font-semibold">
-              <IconShieldCheck size={18} />
-              <span>Security & Infrastructure</span>
-            </div>
-            <CardTitle className="mt-1 text-base font-bold text-foreground">
-              Environment & Runtime
-            </CardTitle>
-            <CardDescription className="text-xs text-muted-foreground">
-              Role-Based Access Control & NextAuth v5 session security.
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-3 p-0 pt-2 text-xs">
-            <div className="flex justify-between border-b border-border/50 py-2">
-              <span className="text-muted-foreground">Next.js Framework</span>
-              <span className="font-semibold text-foreground">16.3.4 (App Router)</span>
-            </div>
-            <div className="flex justify-between border-b border-border/50 py-2">
-              <span className="text-muted-foreground">Route Guarding</span>
-              <span className="font-semibold text-foreground">proxy.ts + SSR Layout</span>
-            </div>
-            <div className="flex justify-between border-b border-border/50 py-2">
-              <span className="text-muted-foreground">Active Database</span>
-              <span className="font-semibold text-foreground">MongoDB Atlas</span>
-            </div>
-          </CardContent>
-        </Card>
-      </div>
+      <main className="w-full mx-auto px-4 sm:px-6 pt-8">
+        <SuperAdminSettingsHub initialSettings={settings} />
+      </main>
     </div>
   );
 }
+
